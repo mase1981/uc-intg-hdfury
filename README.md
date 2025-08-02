@@ -5,7 +5,7 @@ This is a custom integration for the Unfolded Circle Remote family that allows f
 This integration creates two distinct entities on your remote:
 * A **MediaPlayer** entity, this is used to determine the state of the device and for inclusion in activities. Additionally it will showcase input output relevant dynamic data.
 * A **Remote** entity, which provides a custom UI with pages and buttons for direct control of the device's advanced features.
-* **NOTE:** This integration was developed and tested against an HDFury VRROOM. While it may work with other IP-controllable HDFury models, it has only been verified with the VRROOM. 
+**NOTE:** This integration was developed and tested against an HDFury VRROOM. While it may work with other IP-controllable HDFury models, it has only been verified with the VRROOM. 
 
 ## Features
 
