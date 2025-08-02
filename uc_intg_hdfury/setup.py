@@ -1,2 +1,2 @@
-# This file is intentionally left blank. Setup logic is now in driver.py.
+# This file is intentionally left blank. Setup logic is in driver.py.
 pass
