@@ -1,4 +1,3 @@
-# path: C:\Documents\GitHub\uc-intg-hdfury\uc_intg_hdfury\media_player.py
 from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 import logging
