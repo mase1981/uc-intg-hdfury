@@ -1,4 +1,3 @@
-# path: C:\Documents\GitHub\uc-intg-hdfury\uc_intg_hdfury\hdfury_client.py
 import asyncio
 import logging
 
@@ -26,7 +25,7 @@ class HDFuryClient:
                     await asyncio.wait_for(self._reader.read(2048), timeout=1.0)
                     self.log.debug("HDFuryClient: Cleared welcome message from buffer.")
                 except asyncio.TimeoutError:
-                    pass # No welcome message, which is fine
+                    pass
                 self.log.info(f"HDFuryClient: Connected successfully.")
             except Exception as e:
                 self.log.error(f"HDFuryClient: Connection failed: {e}")
@@ -60,15 +59,13 @@ class HDFuryClient:
                 self._writer.write(f"{command}\r\n".encode('ascii'))
                 await self._writer.drain()
 
-                # Always attempt to read the response to clear the command echo from the buffer.
                 response = await asyncio.wait_for(self._reader.readline(), timeout=3.0)
                 decoded = response.decode('ascii').replace('>', '').strip()
                 self.log.debug(f"HDFuryClient: Received response for '{command}': '{decoded}'")
                 return decoded
 
             except asyncio.TimeoutError:
-                # If a command (likely a 'set' command) times out, we log it
-                # but consider it a success to prevent crashes. The command was sent.
+
                 self.log.debug(f"Command '{command}' timed out waiting for response, assuming success.")
                 return "OK_TIMEOUT"
 
