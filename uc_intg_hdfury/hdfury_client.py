@@ -1,0 +1,138 @@
+# path: C:\Documents\GitHub\uc-intg-hdfury\uc_intg_hdfury\hdfury_client.py
+import asyncio
+import logging
+
+class HDFuryClient:
+    def __init__(self, host: str, port: int, log: logging.Logger):
+        self.host, self.port, self.log = host, port, log
+        self._reader: asyncio.StreamReader | None = None
+        self._writer: asyncio.StreamWriter | None = None
+        self._lock = asyncio.Lock()
+        self._connection_lock = asyncio.Lock()
+
+    def is_connected(self) -> bool:
+        return self._writer is not None and not self._writer.is_closing()
+
+    async def connect(self):
+        async with self._connection_lock:
+            if self.is_connected():
+                return
+            self.log.info(f"HDFuryClient: Connecting to {self.host}:{self.port}")
+            try:
+                self._reader, self._writer = await asyncio.wait_for(
+                    asyncio.open_connection(self.host, self.port), timeout=10.0)
+                # Clear the buffer of any welcome messages
+                try:
+                    await asyncio.wait_for(self._reader.read(2048), timeout=1.0)
+                    self.log.debug("HDFuryClient: Cleared welcome message from buffer.")
+                except asyncio.TimeoutError:
+                    pass # No welcome message, which is fine
+                self.log.info(f"HDFuryClient: Connected successfully.")
+            except Exception as e:
+                self.log.error(f"HDFuryClient: Connection failed: {e}")
+                await self.disconnect()
+                raise
+
+    async def disconnect(self):
+        if not self._writer:
+            return
+        self.log.info("HDFuryClient: Disconnecting.")
+        self._writer.close()
+        try:
+            await self._writer.wait_closed()
+        except Exception as e:
+            self.log.debug(f"HDFuryClient: Error during disconnect: {e}")
+        finally:
+            self._writer = self._reader = None
+
+    async def send_command(self, command: str, is_retry: bool = False) -> str:
+        """
+        Sends a command, reads the response to clear the buffer,
+        and handles reconnects.
+        """
+        async with self._lock:
+            try:
+                if not self.is_connected():
+                    self.log.info("HDFuryClient: Not connected. Attempting to reconnect.")
+                    await self.connect()
+
+                self.log.debug(f"HDFuryClient: Sending command '{command}'")
+                self._writer.write(f"{command}\r\n".encode('ascii'))
+                await self._writer.drain()
+
+                # Always attempt to read the response to clear the command echo from the buffer.
+                response = await asyncio.wait_for(self._reader.readline(), timeout=3.0)
+                decoded = response.decode('ascii').replace('>', '').strip()
+                self.log.debug(f"HDFuryClient: Received response for '{command}': '{decoded}'")
+                return decoded
+
+            except asyncio.TimeoutError:
+                # If a command (likely a 'set' command) times out, we log it
+                # but consider it a success to prevent crashes. The command was sent.
+                self.log.debug(f"Command '{command}' timed out waiting for response, assuming success.")
+                return "OK_TIMEOUT"
+
+            except (ConnectionResetError, BrokenPipeError, ConnectionError) as e:
+                await self.disconnect()
+                if is_retry:
+                    self.log.error(f"HDFuryClient: Command '{command}' failed on retry. Giving up. Error: {e}")
+                    raise
+                self.log.warning(f"HDFuryClient: Command '{command}' failed: {e}. Retrying once.")
+                return await self.send_command(command, is_retry=True)
+
+            except Exception as e:
+                self.log.error(f"HDFuryClient: An unexpected error occurred for command '{command}': {e}", exc_info=True)
+                await self.disconnect()
+                raise
+
+    async def get_device_name(self) -> str:
+        return "VRRoom"
+
+    async def get_source_list(self) -> list[str]:
+        return ["HDMI 0", "HDMI 1", "HDMI 2", "HDMI 3"]
+
+    async def get_current_source(self) -> str | None:
+        response = await self.send_command("get insel")
+        parts = response.split()
+        if len(parts) >= 2 and parts[0] == "insel":
+            return f"HDMI {int(parts[1])}"
+        return None
+
+    async def set_source(self, source: str):
+        await self.send_command(f"set inseltx0 {source.replace('HDMI', '').strip()}")
+
+    async def get_status(self, target: str) -> str:
+        response = await self.send_command(f"get status {target}")
+        prefix = f"get status {target}"
+        return response[len(prefix):].strip() if response.startswith(prefix) else response
+        
+    async def set_output_power(self, output: int, state: bool):
+        command = f"set tx{output}plus5 {'on' if state else 'off'}"
+        await self.send_command(command)
+    
+    async def set_edid_mode(self, mode: str):
+        await self.send_command(f"set edidmode {mode}")
+
+    async def set_edid_audio(self, source: str):
+        await self.send_command(f"set edid audio {source}")
+
+    async def set_hdr_custom(self, state: bool):
+        await self.send_command(f"set hdrcustom {'on' if state else 'off'}")
+
+    async def set_hdr_disable(self, state: bool):
+        await self.send_command(f"set hdrdisable {'on' if state else 'off'}")
+
+    async def set_cec(self, state: bool):
+        await self.send_command(f"set cec {'on' if state else 'off'}")
+
+    async def set_earc_force(self, mode: str):
+        await self.send_command(f"set earcforce {mode}")
+
+    async def set_oled(self, state: bool):
+        await self.send_command(f"set oled {'on' if state else 'off'}")
+
+    async def set_autoswitch(self, state: bool):
+        await self.send_command(f"set autosw {'on' if state else 'off'}")
+
+    async def set_hdcp_mode(self, mode: str):
+        await self.send_command(f"set hdcp {mode}")

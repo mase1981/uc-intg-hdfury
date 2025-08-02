@@ -1,0 +1,36 @@
+{
+    "driver_id": "uc-intg-hdfury",
+    "version": "0.1.0",
+    "min_core_api": "0.3.1",
+    "name": {
+        "en": "HDFury Controls"
+    },
+    "icon": "uc:input-numeric",
+    "description": {
+        "en": "Control HDFury HDMI matrix devices like the VRROOM."
+    },
+    "developer": {
+        "name": "Meir Miyara"
+    },
+    "website": "https://github.com/mase1981/uc-intg-hdfury",
+    "setup_data_schema": {
+        "title": {
+            "en": "HDFury Device Setup"
+        },
+        "settings": [
+            {
+                "id": "info",
+                "label": {
+                    "en": "Setup Process"
+                },
+                "field": {
+                    "label": {
+                        "value": {
+                            "en": "This integration allows you to control HDFury devices on your network. You will be asked to provide the device's IP address and port on the next screen."
+                        }
+                    }
+                }
+            }
+        ]
+    }
+}
