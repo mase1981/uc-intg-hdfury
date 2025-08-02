@@ -1,4 +1,3 @@
-# path: C:\Documents\GitHub\uc-intg-hdfury\uc_intg_hdfury\remote.py
 from __future__ import annotations
 from typing import TYPE_CHECKING
 from ucapi import Remote
@@ -50,10 +49,8 @@ class HDFuryRemote(Remote):
 
         items.append(create_ui_text(text="Automix Audio Source", x=0, y=y_pos, size=Size(width=5)))
         y_pos += 1
-        # Use a command-safe ID for "5.1"
         audio_sources = ["stereo", "51", "full", "audioout", "earcout"]
         for i, source in enumerate(audio_sources):
-            # Show a user-friendly label but use the safe ID for the command
             label = "5.1" if source == "51" else source.title()
             cmd_id = f"set_edidaudio_{source}"
             items.append(create_ui_text(text=label, x=i, y=y_pos, cmd=EntityCommand(cmd_id)))
