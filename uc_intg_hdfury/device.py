@@ -1,4 +1,3 @@
-# path: C:\Documents\GitHub\uc-intg-hdfury\uc_intg_hdfury\device.py
 import asyncio
 import logging
 from enum import IntEnum
@@ -37,7 +36,6 @@ class HDFuryDevice:
         try:
             if not self.client.is_connected(): await self.client.connect()
             
-            # The model name is now pre-fetched, so we only need to gather the rest.
             results = await asyncio.gather(
                 self.client.get_source_list(),
                 self.client.get_current_source(), 
