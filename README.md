@@ -5,7 +5,8 @@ This is a custom integration for the Unfolded Circle Remote family that allows f
 This integration creates two distinct entities on your remote:
 * A **MediaPlayer** entity, this is used to determine the state of the device and for inclusion in activities. Additionally it will showcase input output relevant dynamic data.
 * A **Remote** entity, which provides a custom UI with pages and buttons for direct control of the device's advanced features.
-**NOTE:** This integration was developed and tested against an HDFury VRROOM. While it may work with other IP-controllable HDFury models, it has only been verified with the VRROOM. 
+
+**NOTE:** This integration was developed and tested against an HDFury 8k VRRooM. While it may work with other IP-controllable HDFury models, it has only been verified with the 8k VRRooM. 
 
 ## Features
 
@@ -57,8 +58,8 @@ Replace `/path/on/your/host/config` with an actual path on your machine (e.g., `
 4.  Once setup is complete, two new entities will be available to add to your remote's user interface.
 
 > **Important Note on Entities (READ CAREFULLY):**
-> * **`HDFury VRRoom Controls`:** Add this entity to your UI. It contains the custom pages with all the control buttons.
-> * **`HDFury VRRoom` (MediaPlayer):** This entity is primarily for status and for use in Activities. You can add it to your UI for basic source selection and to see the current input/output status.
+> * **`HDFury VRRooM Controls`:** Add this entity to your UI. It contains the custom pages with all the control buttons.
+> * **`HDFury VRRooM` (MediaPlayer):** This entity is primarily for status and for use in Activities. You can add it to your UI for basic source selection and to see the current input/output status.
 
 ## For Developers
 
