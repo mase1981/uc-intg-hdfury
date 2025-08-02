@@ -1,4 +1,3 @@
-# path: C:\Documents\GitHub\uc-intg-hdfury\uc_intg_hdfury\driver.py
 import asyncio
 import logging
 import ucapi
@@ -110,7 +109,6 @@ def add_device(device_config: HDFuryDeviceConfig):
     device = HDFuryDevice(device_config.host, device_config.port, "VRRoom") # Assume VRRoom for saved devices
     
     async def start_and_register():
-        # The media player entity is created in the constructor now
         api.available_entities.add(device.media_player_entity)
         await device.start()
         if device.remote_entity:
