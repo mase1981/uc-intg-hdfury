@@ -1,4 +1,3 @@
-# path: C:\Documents\GitHub\uc-intg-hdfury\uc_intg_hdfury\config.py
 import json
 import logging
 import os
