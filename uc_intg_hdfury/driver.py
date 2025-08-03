@@ -1,4 +1,3 @@
-# path: C:\Documents\GitHub\uc-intg-hdfury\uc_intg_hdfury\device.py
 import asyncio
 import logging
 from enum import IntEnum
