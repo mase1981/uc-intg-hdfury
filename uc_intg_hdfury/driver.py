@@ -1,175 +1,144 @@
-# path: C:\Documents\GitHub\uc-intg-hdfury\uc_intg_hdfury\device.py
 import asyncio
 import logging
-from enum import IntEnum
-from pyee.asyncio import AsyncIOEventEmitter
+import ucapi
+from ucapi import media_player, DeviceStates, api_definitions
+from uc_intg_hdfury.device import HDFuryDevice, EVENTS
+from uc_intg_hdfury.config import Devices, HDFuryDeviceConfig
 from uc_intg_hdfury.hdfury_client import HDFuryClient
-from uc_intg_hdfury.media_player import HDFuryMediaPlayer
-from uc_intg_hdfury.remote import HDFuryRemote
-from ucapi import media_player, api_definitions
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 log = logging.getLogger(__name__)
+loop = asyncio.get_event_loop()
+api = ucapi.api.IntegrationAPI(loop=loop)
+configured_devices: dict[str, HDFuryDevice] = {}
+devices_config: Devices | None = None
 
-class EVENTS(IntEnum):
-    UPDATE = 1
-
-class HDFuryDevice:
-    def __init__(self, host: str, port: int, model: str | None = None):
-        self.host, self.port = host, port
-        self.client = HDFuryClient(host, port, log)
-        self.events = AsyncIOEventEmitter()
-
-        self.model: str = model or "HDFury"
-        self.name: str = f"HDFury {self.model}"
+async def driver_setup_handler(request: ucapi.SetupDriver) -> ucapi.SetupAction:
+    if isinstance(request, ucapi.DriverSetupRequest):
+        return ucapi.RequestUserInput(
+            title={"en": "HDFury Device Address"},
+            settings=[
+                {"id": "host", "label": {"en": "IP Address"}, "field": {"text": {"value": ""}}},
+                {"id": "port", "label": {"en": "Port"}, "field": {"number": {"value": 2222}}}
+            ]
+        )
+    if isinstance(request, ucapi.UserDataResponse):
+        user_input = request.input_values
+        host, port = user_input.get("host"), int(user_input.get("port", 2222))
+        if not host: return ucapi.SetupError("IP address is required.")
         
-        self.state: media_player.States = media_player.States.UNAVAILABLE
-        self.source_list: list[str] = []
-        self.current_source: str | None = None
-        self.media_title: str | None = "Offline"
-        self.media_artist: str | None = ""
-        self.media_album: str | None = ""
-        
-        self.media_player_entity = HDFuryMediaPlayer(self)
-        self.remote_entity: HDFuryRemote | None = None
-
-        # --- Attributes for persistent connection task ---
-        self._connection_task: asyncio.Task | None = None
-        self._is_running: bool = False
-        
-    async def start(self):
-        """Initial connection and polling, and starts the background connection task."""
-        log.info(f"HDFuryDevice: Starting connection management for {self.host}")
-        self._is_running = True
-
-        # --- Start the background task if it's not already running ---
-        if not self._connection_task:
-            loop = asyncio.get_event_loop()
-            self._connection_task = loop.create_task(self._maintain_connection())
+        identifier = f"hdfury-{host.replace('.', '-')}"
+        if identifier in configured_devices: return ucapi.SetupComplete()
 
         try:
-            if not self.client.is_connected(): await self.client.connect()
-            
-            results = await asyncio.gather(
-                self.client.get_source_list(),
-                self.client.get_current_source(), 
-                self.client.get_status("rx0"),
-                self.client.get_status("tx0"),
-                self.client.get_status("tx0sink")
-            )
-            self.source_list, self.current_source, self.media_title, self.media_artist, self.media_album = results
-            
-            self.state = media_player.States.ON
-
-            if not self.remote_entity:
-                self.remote_entity = HDFuryRemote(self)
-
+            temp_client = HDFuryClient(host, port, log)
+            await temp_client.connect()
+            model_name = await temp_client.get_device_name()
+            await temp_client.disconnect()
         except Exception as e:
-            self.state = media_player.States.UNAVAILABLE
-            self.media_title = "Offline"
-            self.media_artist = ""
-            self.media_album = ""
-            log.error(f"HDFuryDevice connection error: {e}", exc_info=True)
-        
-        self.events.emit(EVENTS.UPDATE, self)
+            return ucapi.SetupError(f"Could not connect to get device model: {e}")
 
-    async def stop(self):
-        """Stops the integration and cleans up the background task."""
-        log.info(f"HDFuryDevice: Stopping connection management for {self.host}")
-        self._is_running = False
+        device = HDFuryDevice(host, port, model_name)
+        api.available_entities.add(device.media_player_entity)
+        device.events.on(EVENTS.UPDATE, on_device_update)
 
-        # --- Cancel the background task ---
-        if self._connection_task:
-            self._connection_task.cancel()
-            self._connection_task = None
-        
-        if self.client.is_connected(): await self.client.disconnect()
-        self.state = media_player.States.OFF
-        self.events.emit(EVENTS.UPDATE, self)
-
-    async def _maintain_connection(self):
-        """A background task to periodically check the connection and reconnect if needed."""
-        log.info(f"HDFuryDevice: Starting connection maintenance task for {self.host}")
-        while self._is_running:
-            try:
-                if not self.client.is_connected():
-                    log.warning(f"HDFuryDevice: Connection lost to {self.host}. Attempting to reconnect...")
-                    # Set state to unavailable and notify UI
-                    self.state = media_player.States.UNAVAILABLE
-                    self.media_title = "Reconnecting..."
-                    self.events.emit(EVENTS.UPDATE, self)
-                    # Use the start method to reconnect and poll for new state
-                    await self.start()
-                
-                # Wait for the next check
-                await asyncio.sleep(15)
-
-            except asyncio.CancelledError:
-                log.info("Connection maintenance task cancelled.")
-                break
-            except Exception as e:
-                log.error(f"Error in connection maintenance task: {e}. Retrying in 15s.")
-                await asyncio.sleep(15)
-
-    async def set_power(self, state: bool):
-        log.info(f"Setting TX0 power to {'ON' if state else 'OFF'}")
         try:
-            await self.client.set_output_power(0, state)
-            await asyncio.sleep(1) # Power commands can benefit from a small delay
-            self.state = media_player.States.ON if state else media_player.States.OFF
-            self.events.emit(EVENTS.UPDATE, self)
+            # Start the device connection and polling
+            await asyncio.wait_for(device.start(), timeout=15.0)
+            if device.state != media_player.States.ON:
+                 return ucapi.SetupError("Could not get valid status from HDFury.")
+            
+            if device.remote_entity:
+                api.available_entities.add(device.remote_entity)
+            
+            configured_devices[identifier] = device
+            new_config = HDFuryDeviceConfig(identifier, device.name, host, port)
+            devices_config.add(new_config)
+            return ucapi.SetupComplete()
         except Exception as e:
-            log.error(f"Failed to set power: {e}")
-            self.state = media_player.States.UNAVAILABLE
-            self.events.emit(EVENTS.UPDATE, self)
+            return ucapi.SetupError(f"Connection failed during setup: {e}")
+    return ucapi.SetupError()
+
+@api.listens_to(api_definitions.Events.CONNECT)
+async def on_connect() -> None:
+    log.info("Remote connected. Setting driver state to CONNECTED.")
+    await api.set_device_state(DeviceStates.CONNECTED)
+
+@api.listens_to(api_definitions.Events.SUBSCRIBE_ENTITIES)
+async def on_subscribe_entities(entity_ids: list[str]):
+    all_device_ids = { eid.split('.')[-1].split('-remote')[0] for eid in entity_ids }
     
-    async def handle_remote_command(self, entity, cmd_id, kwargs):
-        """Handles all commands from the HDFuryRemote entity."""
-        actual_cmd = kwargs.get("command")
-        
-        if not actual_cmd:
-            log.error(f"HDFuryDevice received remote command without an actual command: {cmd_id}")
-            return api_definitions.StatusCodes.SERVER_ERROR
+    for identifier in all_device_ids:
+        if identifier in configured_devices:
+            device = configured_devices[identifier]
+            if not device.client.is_connected(): await device.start()
+            push_device_state(device)
 
-        log.info(f"HDFuryDevice received remote command: {actual_cmd}")
-        
-        try:
-            if actual_cmd.startswith("set_source_"):
-                source = actual_cmd.replace("set_source_", "").replace("_", " ")
-                await self.client.set_source(source)
-            elif actual_cmd.startswith("set_edidmode_"):
-                mode = actual_cmd.replace("set_edidmode_", "")
-                await self.client.set_edid_mode(mode)
-            elif actual_cmd.startswith("set_edidaudio_"):
-                source = actual_cmd.replace("set_edidaudio_", "")
-                if source == "51":
-                    await self.client.set_edid_audio("5.1")
-                else:
-                    await self.client.set_edid_audio(source)
-            elif actual_cmd.startswith("set_hdrcustom_"):
-                state = (actual_cmd == "set_hdrcustom_on")
-                await self.client.set_hdr_custom(state)
-            elif actual_cmd.startswith("set_hdrdisable_"):
-                state = (actual_cmd == "set_hdrdisable_on")
-                await self.client.set_hdr_disable(state)
-            elif actual_cmd.startswith("set_cec_"):
-                state = (actual_cmd == "set_cec_on")
-                await self.client.set_cec(state)
-            elif actual_cmd.startswith("set_earcforce_"):
-                mode = actual_cmd.replace("set_earcforce_", "")
-                await self.client.set_earc_force(mode)
-            elif actual_cmd.startswith("set_oled_"):
-                state = (actual_cmd == "set_oled_on")
-                await self.client.set_oled(state)
-            elif actual_cmd.startswith("set_autosw_"):
-                state = (actual_cmd == "set_autosw_on")
-                await self.client.set_autoswitch(state)
-            elif actual_cmd.startswith("set_hdcp_"):
-                mode = actual_cmd.replace("set_hdcp_", "")
-                await self.client.set_hdcp_mode(mode)
-            
-            await self.start()
-        except Exception as e:
-            log.error(f"Error executing remote command '{actual_cmd}': {e}", exc_info=True)
-            return api_definitions.StatusCodes.SERVER_ERROR
+def on_device_update(device: HDFuryDevice):
+    push_device_state(device)
 
-        return api_definitions.StatusCodes.OK
+def push_device_state(device: HDFuryDevice):
+    """Pushes the state of the HDFury device to its entities."""
+    if mp_entity := device.media_player_entity:
+        if api.configured_entities.contains(mp_entity.id):
+            attributes_to_update = {
+                "name": {"en": device.name},
+                "state": device.state,
+                "media_title": device.media_title,
+                "media_artist": device.media_artist,
+                "media_album": device.media_album,
+                "source_list": device.source_list,
+                "source": device.current_source,
+            }
+            api.configured_entities.update_attributes(mp_entity.id, attributes_to_update)
+            log.info(f"Pushed state to entity {mp_entity.id}")
+
+    if remote_entity := device.remote_entity:
+        if api.configured_entities.contains(remote_entity.id):
+            remote_entity_attributes = {
+                "name": f"{device.name} Controls"
+            }
+            api.configured_entities.update_attributes(remote_entity.id, remote_entity_attributes)
+            log.info(f"Pushed state to entity {remote_entity.id}")
+
+def add_device(device_config: HDFuryDeviceConfig):
+    """Creates a device object from config but does not start its connection."""
+    identifier = device_config.identifier
+    if identifier in configured_devices: return
+
+    device = HDFuryDevice(device_config.host, device_config.port, "VRRoom")
+    
+    api.available_entities.add(device.media_player_entity)
+    def add_remote_entity_after_start(started_device):
+        if started_device.remote_entity:
+            api.available_entities.add(started_device.remote_entity)
+        started_device.events.remove_listener(EVENTS.UPDATE, add_remote_entity_after_start)
+
+    device.events.on(EVENTS.UPDATE, on_device_update)
+    device.events.on(EVENTS.UPDATE, add_remote_entity_after_start)
+    configured_devices[identifier] = device
+
+async def main():
+    global devices_config
+    log.info("Starting HDFury driver...")
+    
+    devices_config = Devices(api.config_dir_path, add_device, None)
+    for device_config in devices_config.all():
+        add_device(device_config)
+    
+    await api.init(driver_path="driver.json", setup_handler=driver_setup_handler)
+    
+    if configured_devices:
+        log.info(f"Starting connection tasks for {len(configured_devices)} configured device(s).")
+        await asyncio.gather(*[d.start() for d in configured_devices.values()])
+    
+if __name__ == "__main__":
+    try:
+        loop.run_until_complete(main())
+        loop.run_forever()
+    except (KeyboardInterrupt, asyncio.CancelledError):
+        log.info("Driver stopped.")
+    finally:
+        if configured_devices:
+            loop.run_until_complete(asyncio.gather(*[d.stop() for d in configured_devices.values()]))
+        loop.close()
