@@ -79,6 +79,7 @@ class HDFuryDevice:
     
     async def handle_remote_command(self, entity, cmd_id, kwargs):
         """Handles all commands from the HDFuryRemote entity."""
+        kwargs = kwargs or {}  # fix: prevents AttributeError
         actual_cmd = kwargs.get("command")
         
         if not actual_cmd:
