@@ -21,6 +21,9 @@ class HDFuryDevice:
         self.model: str = model or "HDFury"
         self.name: str = f"HDFury {self.model}"
         
+        # Generate a unique device_id - CRITICAL for entity lifecycle synchronization
+        self.device_id = f"hdfury-{host.replace('.', '-')}" 
+        
         self.state: media_player.States = media_player.States.UNAVAILABLE
         self.source_list: list[str] = []
         self.current_source: str | None = None
@@ -28,6 +31,7 @@ class HDFuryDevice:
         self.media_artist: str | None = ""
         self.media_album: str | None = ""
         
+        # CRITICAL: Both entities must share the same device_id (JVC pattern)
         self.media_player_entity = HDFuryMediaPlayer(self)
         self.remote_entity = HDFuryRemote(self)
         

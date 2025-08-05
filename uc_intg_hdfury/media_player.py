@@ -11,7 +11,7 @@ log = logging.getLogger(__name__)
 class HDFuryMediaPlayer(media_player.MediaPlayer):
     def __init__(self, device: HDFuryDevice):
         self._device = device
-        identifier = f"hdfury-{device.host.replace('.', '-')}"
+        identifier = device.device_id  # Use shared device_id
         
         features = [
             media_player.Features.ON_OFF,
@@ -24,6 +24,7 @@ class HDFuryMediaPlayer(media_player.MediaPlayer):
             features=features,
             attributes={ "state": media_player.States.UNAVAILABLE },
             device_class=media_player.DeviceClasses.RECEIVER,
+            # REMOVED: device_id parameter - this was causing the error
             cmd_handler=self.handle_command
         )
 

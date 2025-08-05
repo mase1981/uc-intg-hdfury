@@ -2,6 +2,7 @@ import asyncio
 import logging
 import ucapi
 from ucapi import media_player, DeviceStates, api_definitions
+from ucapi.remote import States as RemoteStates  # Import Remote states
 from uc_intg_hdfury.device import HDFuryDevice, EVENTS
 from uc_intg_hdfury.config import Devices, HDFuryDeviceConfig
 from uc_intg_hdfury.hdfury_client import HDFuryClient
@@ -39,12 +40,11 @@ async def driver_setup_handler(request: ucapi.SetupDriver) -> ucapi.SetupAction:
             return ucapi.SetupError(f"Could not connect to get device model: {e}")
 
         device = HDFuryDevice(host, port, model_name)
+        
+        # Add entities to available entities
         api.available_entities.add(device.media_player_entity)
         api.available_entities.add(device.remote_entity)
         device.events.on(EVENTS.UPDATE, on_device_update)
-
-        # Add small delay to ensure entities are properly registered on slower hardware
-        await asyncio.sleep(0.2)
 
         try:
             await asyncio.wait_for(device.start(), timeout=15.0)
@@ -63,11 +63,6 @@ async def driver_setup_handler(request: ucapi.SetupDriver) -> ucapi.SetupAction:
 async def on_connect() -> None:
     log.info("Remote connected. Setting driver state to CONNECTED.")
     await api.set_device_state(DeviceStates.CONNECTED)
-    
-    # Force entity updates to ensure proper reconnection after reboot
-    await asyncio.sleep(0.1)
-    for device in configured_devices.values():
-        push_device_state(device)
 
 @api.listens_to(api_definitions.Events.SUBSCRIBE_ENTITIES)
 async def on_subscribe_entities(entity_ids: list[str]):
@@ -83,10 +78,10 @@ def on_device_update(device: HDFuryDevice):
     push_device_state(device)
 
 def push_device_state(device: HDFuryDevice):
+    # Update MediaPlayer entity
     if mp_entity := device.media_player_entity:
         if api.configured_entities.contains(mp_entity.id):
-            attributes_to_update = {
-                "name": {"en": device.name},
+            mp_attributes = {
                 "state": device.state,
                 "media_title": device.media_title,
                 "media_artist": device.media_artist,
@@ -94,15 +89,17 @@ def push_device_state(device: HDFuryDevice):
                 "source_list": device.source_list,
                 "source": device.current_source,
             }
-            api.configured_entities.update_attributes(mp_entity.id, attributes_to_update)
+            api.configured_entities.update_attributes(mp_entity.id, mp_attributes)
             log.info(f"Pushed state to entity {mp_entity.id}")
 
+    # Update Remote entity - CRITICAL: Only update state, no name attribute
     if remote_entity := device.remote_entity:
         if api.configured_entities.contains(remote_entity.id):
-            remote_entity_attributes = {
-                "name": f"{device.name} Controls"
+            # Remote entities only need state updates - names are set during initialization
+            remote_attributes = {
+                "state": RemoteStates.ON if device.state == media_player.States.ON else RemoteStates.OFF
             }
-            api.configured_entities.update_attributes(remote_entity.id, remote_entity_attributes)
+            api.configured_entities.update_attributes(remote_entity.id, remote_attributes)
             log.info(f"Pushed state to entity {remote_entity.id}")
 
 def add_device(device_config: HDFuryDeviceConfig):
@@ -111,6 +108,7 @@ def add_device(device_config: HDFuryDeviceConfig):
 
     device = HDFuryDevice(device_config.host, device_config.port, "VRRoom")
     
+    # Add both entities atomically
     api.available_entities.add(device.media_player_entity)
     api.available_entities.add(device.remote_entity)
     device.events.on(EVENTS.UPDATE, on_device_update)
@@ -124,21 +122,10 @@ async def main():
     for device_config in devices_config.all():
         add_device(device_config)
     
-    # Add small delay to ensure entities are properly registered before API init
-    if configured_devices:
-        await asyncio.sleep(0.5)
-    
     await api.init(driver_path="driver.json", setup_handler=driver_setup_handler)
-    
-    # Ensure entities are immediately available for reconnection
-    log.info("Driver initialized. Ensuring all entities are properly registered.")
-    for device in configured_devices.values():
-        push_device_state(device)
     
     if configured_devices:
         log.info(f"Starting connection tasks for {len(configured_devices)} configured device(s).")
-        # Add small delay before starting device connections to ensure API is fully ready
-        await asyncio.sleep(0.3)
         await asyncio.gather(*[d.start() for d in configured_devices.values()])
     
 if __name__ == "__main__":
