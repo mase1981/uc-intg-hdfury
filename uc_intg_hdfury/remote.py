@@ -7,7 +7,6 @@ if TYPE_CHECKING:
     from uc_intg_hdfury.device import HDFuryDevice
 
 class HDFuryRemote(Remote):
-    """Defines the HDFury Remote entity and its custom UI."""
     def __init__(self, device: HDFuryDevice):
         self._device = device
         
@@ -18,7 +17,7 @@ class HDFuryRemote(Remote):
             attributes={},
             cmd_handler=self._device.handle_remote_command,
             ui_pages=[
-                self._create_sources_page(device.source_list),
+                self._create_sources_page(["HDMI 0", "HDMI 1", "HDMI 2", "HDMI 3"]),
                 self._create_edid_page(),
                 self._create_hdr_avi_page(),
                 self._create_cec_earc_page(),
