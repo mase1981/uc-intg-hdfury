@@ -15,7 +15,7 @@ class HDFuryRemote(Remote):
             name=f"{device.name} Controls",
             features=[],
             attributes={},
-            device_id=device.device_id,  # CRITICAL: Set device_id
+            # REMOVED: device_id parameter - Remote class might not support it either
             cmd_handler=self._device.handle_remote_command,
             ui_pages=[
                 self._create_sources_page(["HDMI 0", "HDMI 1", "HDMI 2", "HDMI 3"]),

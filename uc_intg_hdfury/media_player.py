@@ -24,7 +24,7 @@ class HDFuryMediaPlayer(media_player.MediaPlayer):
             features=features,
             attributes={ "state": media_player.States.UNAVAILABLE },
             device_class=media_player.DeviceClasses.RECEIVER,
-            device_id=device.device_id,  # CRITICAL: Set device_id
+            # REMOVED: device_id parameter - this was causing the error
             cmd_handler=self.handle_command
         )
 
