@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "uc-intg-hdfury"
-version = "0.1.8"
+version = "0.1.9"
 description = "Unfolded Circle integration for HDFury devices."
 authors = ["Meir Miyara <meir.miyara@gmail.com>"]
 readme = "README.md"
