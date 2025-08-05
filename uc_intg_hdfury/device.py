@@ -46,6 +46,7 @@ class HDFuryDevice:
             self.source_list, self.current_source, self.media_title, self.media_artist, self.media_album = results
             
             self.state = media_player.States.ON
+            self.remote_entity.update_source_list(self.source_list)
 
         except Exception as e:
             self.state = media_player.States.UNAVAILABLE
