@@ -18,7 +18,6 @@ class HDFuryMediaPlayer(media_player.MediaPlayer):
             media_player.Features.SELECT_SOURCE,
         ]
 
-        # Initialize with the base name. The driver will update it with the model name.
         super().__init__(
             identifier=identifier,
             name=device.name,
@@ -31,16 +30,21 @@ class HDFuryMediaPlayer(media_player.MediaPlayer):
     async def handle_command(self, entity_arg: entity.Entity, command: str, kwargs: dict[str, Any]) -> api_definitions.StatusCodes:
         log.debug(f"HDFuryMediaPlayer received command: {command}")
         
-        if command == media_player.Commands.SELECT_SOURCE:
-            source = kwargs.get("source")
-            if source:
-                await self._device.client.set_source(source)
-                await self._device.start()
-        elif command == media_player.Commands.ON:
-            await self._device.set_power(True)
-        elif command == media_player.Commands.OFF:
-            await self._device.set_power(False)
-        else:
-            log.warning(f"Received unhandled command: {command}")
+        try:
+            if command == media_player.Commands.SELECT_SOURCE:
+                source = kwargs.get("source")
+                if source:
+                    await self._device.client.set_source(source)
+                    await self._device.start()
+            elif command == media_player.Commands.ON:
+                await self._device.set_power(True)
+            elif command == media_player.Commands.OFF:
+                await self._device.set_power(False)
+            else:
+                log.warning(f"Received unhandled command: {command}")
+                return api_definitions.StatusCodes.NOT_IMPLEMENTED
+        except Exception as e:
+            log.error(f"Failed to execute command {command}: {e}")
+            return api_definitions.StatusCodes.SERVER_ERROR
             
         return api_definitions.StatusCodes.OK

@@ -29,7 +29,7 @@ class HDFuryDevice:
         self.media_album: str | None = ""
         
         self.media_player_entity = HDFuryMediaPlayer(self)
-        self.remote_entity: HDFuryRemote | None = None
+        self.remote_entity = HDFuryRemote(self)
         
     async def start(self):
         log.info(f"HDFuryDevice: Starting poll for {self.host}")
@@ -46,9 +46,6 @@ class HDFuryDevice:
             self.source_list, self.current_source, self.media_title, self.media_artist, self.media_album = results
             
             self.state = media_player.States.ON
-
-            if not self.remote_entity:
-                self.remote_entity = HDFuryRemote(self)
 
         except Exception as e:
             self.state = media_player.States.UNAVAILABLE
@@ -69,7 +66,7 @@ class HDFuryDevice:
         log.info(f"Setting TX0 power to {'ON' if state else 'OFF'}")
         try:
             await self.client.set_output_power(0, state)
-            await asyncio.sleep(1) # Power commands can benefit from a small delay
+            await asyncio.sleep(1)
             self.state = media_player.States.ON if state else media_player.States.OFF
             self.events.emit(EVENTS.UPDATE, self)
         except Exception as e:
@@ -78,13 +75,11 @@ class HDFuryDevice:
             self.events.emit(EVENTS.UPDATE, self)
     
     async def handle_remote_command(self, entity, cmd_id, kwargs):
-        """Handles all commands from the HDFuryRemote entity."""
-        kwargs = kwargs or {}  # fix: prevents AttributeError
         actual_cmd = kwargs.get("command")
         
         if not actual_cmd:
             log.error(f"HDFuryDevice received remote command without an actual command: {cmd_id}")
-            return api_definitions.StatusCodes.SERVER_ERROR
+            return api_definitions.StatusCodes.BAD_REQUEST
 
         log.info(f"HDFuryDevice received remote command: {actual_cmd}")
         
@@ -122,8 +117,10 @@ class HDFuryDevice:
             elif actual_cmd.startswith("set_hdcp_"):
                 mode = actual_cmd.replace("set_hdcp_", "")
                 await self.client.set_hdcp_mode(mode)
+            else:
+                log.warning(f"Unsupported command: {actual_cmd}")
+                return api_definitions.StatusCodes.NOT_IMPLEMENTED
             
-            # Refresh device state after command. The client's readline now handles timing.
             await self.start()
         except Exception as e:
             log.error(f"Error executing remote command '{actual_cmd}': {e}", exc_info=True)
