@@ -45,6 +45,10 @@ class HDFuryDevice:
             )
             self.source_list, self.current_source, self.media_title, self.media_artist, self.media_album = results
             
+            # Clean up common HDFury device typos
+            if self.media_artist and "onnected" in self.media_artist:
+                self.media_artist = self.media_artist.replace("onnected", "connected")
+            
             self.state = media_player.States.ON
 
         except Exception as e:
