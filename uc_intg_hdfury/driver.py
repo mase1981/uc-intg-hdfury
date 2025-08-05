@@ -63,6 +63,11 @@ async def driver_setup_handler(request: ucapi.SetupDriver) -> ucapi.SetupAction:
 async def on_connect() -> None:
     log.info("Remote connected. Setting driver state to CONNECTED.")
     await api.set_device_state(DeviceStates.CONNECTED)
+    
+    # Force entity updates to ensure proper reconnection after reboot
+    await asyncio.sleep(0.1)
+    for device in configured_devices.values():
+        push_device_state(device)
 
 @api.listens_to(api_definitions.Events.SUBSCRIBE_ENTITIES)
 async def on_subscribe_entities(entity_ids: list[str]):
@@ -124,6 +129,11 @@ async def main():
         await asyncio.sleep(0.5)
     
     await api.init(driver_path="driver.json", setup_handler=driver_setup_handler)
+    
+    # Ensure entities are immediately available for reconnection
+    log.info("Driver initialized. Ensuring all entities are properly registered.")
+    for device in configured_devices.values():
+        push_device_state(device)
     
     if configured_devices:
         log.info(f"Starting connection tasks for {len(configured_devices)} configured device(s).")
