@@ -40,16 +40,13 @@ async def driver_setup_handler(request: ucapi.SetupDriver) -> ucapi.SetupAction:
 
         device = HDFuryDevice(host, port, model_name)
         api.available_entities.add(device.media_player_entity)
+        api.available_entities.add(device.remote_entity)
         device.events.on(EVENTS.UPDATE, on_device_update)
 
         try:
-            # Start the device connection and polling
             await asyncio.wait_for(device.start(), timeout=15.0)
             if device.state != media_player.States.ON:
                  return ucapi.SetupError("Could not get valid status from HDFury.")
-            
-            if device.remote_entity:
-                api.available_entities.add(device.remote_entity)
             
             configured_devices[identifier] = device
             new_config = HDFuryDeviceConfig(identifier, device.name, host, port)
@@ -78,7 +75,6 @@ def on_device_update(device: HDFuryDevice):
     push_device_state(device)
 
 def push_device_state(device: HDFuryDevice):
-    """Pushes the state of the HDFury device to its entities."""
     if mp_entity := device.media_player_entity:
         if api.configured_entities.contains(mp_entity.id):
             attributes_to_update = {
@@ -102,20 +98,14 @@ def push_device_state(device: HDFuryDevice):
             log.info(f"Pushed state to entity {remote_entity.id}")
 
 def add_device(device_config: HDFuryDeviceConfig):
-    """Creates a device object from config but does not start its connection."""
     identifier = device_config.identifier
     if identifier in configured_devices: return
 
     device = HDFuryDevice(device_config.host, device_config.port, "VRRoom")
     
     api.available_entities.add(device.media_player_entity)
-    def add_remote_entity_after_start(started_device):
-        if started_device.remote_entity:
-            api.available_entities.add(started_device.remote_entity)
-        started_device.events.remove_listener(EVENTS.UPDATE, add_remote_entity_after_start)
-
+    api.available_entities.add(device.remote_entity)
     device.events.on(EVENTS.UPDATE, on_device_update)
-    device.events.on(EVENTS.UPDATE, add_remote_entity_after_start)
     configured_devices[identifier] = device
 
 async def main():
