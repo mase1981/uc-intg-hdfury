@@ -17,16 +17,13 @@ class HDFuryRemote(Remote):
             attributes={},
             cmd_handler=self._device.handle_remote_command,
             ui_pages=[
-                self._create_sources_page([]),
+                self._create_sources_page(["HDMI 0", "HDMI 1", "HDMI 2", "HDMI 3"]),
                 self._create_edid_page(),
                 self._create_hdr_avi_page(),
                 self._create_cec_earc_page(),
                 self._create_system_page(),
             ]
         )
-
-    def update_source_list(self, source_list: list[str]):
-        self.ui_pages[0] = self._create_sources_page(source_list)
 
     def _create_sources_page(self, source_list: list[str]) -> UiPage:
         items = [create_ui_text(text="Select Input", x=0, y=0, size=Size(width=4))]
