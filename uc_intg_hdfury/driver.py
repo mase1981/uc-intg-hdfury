@@ -43,6 +43,9 @@ async def driver_setup_handler(request: ucapi.SetupDriver) -> ucapi.SetupAction:
         api.available_entities.add(device.remote_entity)
         device.events.on(EVENTS.UPDATE, on_device_update)
 
+        # Add small delay to ensure entities are properly registered on slower hardware
+        await asyncio.sleep(0.2)
+
         try:
             await asyncio.wait_for(device.start(), timeout=15.0)
             if device.state != media_player.States.ON:
@@ -116,10 +119,16 @@ async def main():
     for device_config in devices_config.all():
         add_device(device_config)
     
+    # Add small delay to ensure entities are properly registered before API init
+    if configured_devices:
+        await asyncio.sleep(0.5)
+    
     await api.init(driver_path="driver.json", setup_handler=driver_setup_handler)
     
     if configured_devices:
         log.info(f"Starting connection tasks for {len(configured_devices)} configured device(s).")
+        # Add small delay before starting device connections to ensure API is fully ready
+        await asyncio.sleep(0.3)
         await asyncio.gather(*[d.start() for d in configured_devices.values()])
     
 if __name__ == "__main__":
