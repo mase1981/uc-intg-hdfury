@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 from ucapi import Remote
+from ucapi.remote import States  # Import States from remote
 from ucapi.ui import UiPage, Size, create_ui_text, EntityCommand
 
 if TYPE_CHECKING:
@@ -11,11 +12,10 @@ class HDFuryRemote(Remote):
         self._device = device
         
         super().__init__(
-            identifier=f"{device.device_id}-remote",  # Use shared device_id
+            identifier=f"{device.device_id}-remote",  # Use shared device_id pattern
             name=f"{device.name} Controls",
             features=[],
-            attributes={},
-            # REMOVED: device_id parameter - Remote class might not support it either
+            attributes={"state": States.ON},  # CRITICAL: Remote entities need state attribute
             cmd_handler=self._device.handle_remote_command,
             ui_pages=[
                 self._create_sources_page(["HDMI 0", "HDMI 1", "HDMI 2", "HDMI 3"]),

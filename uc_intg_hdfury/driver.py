@@ -2,6 +2,7 @@ import asyncio
 import logging
 import ucapi
 from ucapi import media_player, DeviceStates, api_definitions
+from ucapi.remote import States as RemoteStates  # Import Remote states
 from uc_intg_hdfury.device import HDFuryDevice, EVENTS
 from uc_intg_hdfury.config import Devices, HDFuryDeviceConfig
 from uc_intg_hdfury.hdfury_client import HDFuryClient
@@ -40,7 +41,7 @@ async def driver_setup_handler(request: ucapi.SetupDriver) -> ucapi.SetupAction:
 
         device = HDFuryDevice(host, port, model_name)
         
-        # CRITICAL: Add entities in the exact same pattern as JVC integration
+        # Add entities to available entities
         api.available_entities.add(device.media_player_entity)
         api.available_entities.add(device.remote_entity)
         device.events.on(EVENTS.UPDATE, on_device_update)
@@ -77,10 +78,10 @@ def on_device_update(device: HDFuryDevice):
     push_device_state(device)
 
 def push_device_state(device: HDFuryDevice):
+    # Update MediaPlayer entity
     if mp_entity := device.media_player_entity:
         if api.configured_entities.contains(mp_entity.id):
-            attributes_to_update = {
-                "name": {"en": device.name},
+            mp_attributes = {
                 "state": device.state,
                 "media_title": device.media_title,
                 "media_artist": device.media_artist,
@@ -88,15 +89,17 @@ def push_device_state(device: HDFuryDevice):
                 "source_list": device.source_list,
                 "source": device.current_source,
             }
-            api.configured_entities.update_attributes(mp_entity.id, attributes_to_update)
+            api.configured_entities.update_attributes(mp_entity.id, mp_attributes)
             log.info(f"Pushed state to entity {mp_entity.id}")
 
+    # Update Remote entity - CRITICAL: Only update state, no name attribute
     if remote_entity := device.remote_entity:
         if api.configured_entities.contains(remote_entity.id):
-            remote_entity_attributes = {
-                "name": f"{device.name} Controls"
+            # Remote entities only need state updates - names are set during initialization
+            remote_attributes = {
+                "state": RemoteStates.ON if device.state == media_player.States.ON else RemoteStates.OFF
             }
-            api.configured_entities.update_attributes(remote_entity.id, remote_entity_attributes)
+            api.configured_entities.update_attributes(remote_entity.id, remote_attributes)
             log.info(f"Pushed state to entity {remote_entity.id}")
 
 def add_device(device_config: HDFuryDeviceConfig):
@@ -105,7 +108,7 @@ def add_device(device_config: HDFuryDeviceConfig):
 
     device = HDFuryDevice(device_config.host, device_config.port, "VRRoom")
     
-    # CRITICAL: Add both entities atomically - inspired by JVC integration
+    # Add both entities atomically
     api.available_entities.add(device.media_player_entity)
     api.available_entities.add(device.remote_entity)
     device.events.on(EVENTS.UPDATE, on_device_update)
@@ -115,7 +118,6 @@ async def main():
     global devices_config
     log.info("Starting HDFury driver...")
     
-    # CRITICAL: Based on JVC integration - ensure entities have synchronized device_id
     devices_config = Devices(api.config_dir_path, add_device, None)
     for device_config in devices_config.all():
         add_device(device_config)
