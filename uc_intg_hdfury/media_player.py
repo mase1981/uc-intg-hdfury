@@ -13,9 +13,9 @@ class HDFuryMediaPlayer(media_player.MediaPlayer):
         self._device = device
         identifier = device.device_id  # Use shared device_id
         
+        # Only declare ON_OFF feature like weather integration - no SELECT_SOURCE
         features = [
             media_player.Features.ON_OFF,
-            media_player.Features.SELECT_SOURCE,
         ]
 
         super().__init__(
@@ -24,7 +24,6 @@ class HDFuryMediaPlayer(media_player.MediaPlayer):
             features=features,
             attributes={ "state": media_player.States.UNAVAILABLE },
             device_class=media_player.DeviceClasses.RECEIVER,
-            # REMOVED: device_id parameter - this was causing the error
             cmd_handler=self.handle_command
         )
 
@@ -32,20 +31,17 @@ class HDFuryMediaPlayer(media_player.MediaPlayer):
         log.debug(f"HDFuryMediaPlayer received command: {command}")
         
         try:
-            if command == media_player.Commands.SELECT_SOURCE:
-                source = kwargs.get("source")
-                if source:
-                    await self._device.client.set_source(source)
-                    await self._device.start()
-            elif command == media_player.Commands.ON:
+            if command == media_player.Commands.ON:
                 await self._device.set_power(True)
+                return api_definitions.StatusCodes.OK
             elif command == media_player.Commands.OFF:
                 await self._device.set_power(False)
+                return api_definitions.StatusCodes.OK
+            elif command == media_player.Commands.PLAY_PAUSE:
+                return api_definitions.StatusCodes.OK
             else:
                 log.warning(f"Received unhandled command: {command}")
                 return api_definitions.StatusCodes.NOT_IMPLEMENTED
         except Exception as e:
             log.error(f"Failed to execute command {command}: {e}")
             return api_definitions.StatusCodes.SERVER_ERROR
-            
-        return api_definitions.StatusCodes.OK
