@@ -31,6 +31,11 @@ class HDFuryDevice:
         self.media_artist: str | None = ""
         self.media_album: str | None = ""
         
+        # Keep-alive tracking
+        self._keep_alive_task: asyncio.Task | None = None
+        self._last_successful_poll: float = 0
+        self._keep_alive_interval: int = 180  # 3 minutes - more frequent for HDFury devices
+        
         # CRITICAL: Both entities must share the same device_id (JVC pattern)
         self.media_player_entity = HDFuryMediaPlayer(self)
         self.remote_entity = HDFuryRemote(self)
@@ -38,7 +43,8 @@ class HDFuryDevice:
     async def start(self):
         log.info(f"HDFuryDevice: Starting poll for {self.host}")
         try:
-            if not self.client.is_connected(): await self.client.connect()
+            if not self.client.is_connected(): 
+                await self.client.connect()
             
             results = await asyncio.gather(
                 self.client.get_source_list(),
@@ -54,6 +60,11 @@ class HDFuryDevice:
                 self.media_artist = self.media_artist.replace("onnected", "connected")
             
             self.state = media_player.States.ON
+            self._last_successful_poll = asyncio.get_event_loop().time()
+            
+            # Start keep-alive task if not already running
+            if not self._keep_alive_task or self._keep_alive_task.done():
+                self._keep_alive_task = asyncio.create_task(self._keep_alive_loop())
 
         except Exception as e:
             self.state = media_player.States.UNAVAILABLE
@@ -66,9 +77,76 @@ class HDFuryDevice:
 
     async def stop(self):
         log.info(f"HDFuryDevice: Stopping connection to {self.host}")
-        if self.client.is_connected(): await self.client.disconnect()
+        
+        # Cancel keep-alive task
+        if self._keep_alive_task and not self._keep_alive_task.done():
+            self._keep_alive_task.cancel()
+            try:
+                await self._keep_alive_task
+            except asyncio.CancelledError:
+                pass
+        
+        if self.client.is_connected(): 
+            await self.client.disconnect()
         self.state = media_player.States.OFF
         self.events.emit(EVENTS.UPDATE, self)
+
+    async def _keep_alive_loop(self):
+        """
+        Keep-alive task that periodically polls the device to maintain connection.
+        Runs every 3 minutes with enhanced reconnection logic for HDFury devices.
+        """
+        log.info(f"HDFuryDevice: Starting keep-alive loop for {self.host}")
+        
+        while True:
+            try:
+                await asyncio.sleep(self._keep_alive_interval)
+                
+                current_time = asyncio.get_event_loop().time()
+                time_since_last_poll = current_time - self._last_successful_poll
+                
+                # If it's been more than 8 minutes since last successful poll, force reconnect
+                if time_since_last_poll > 480:  # 8 minutes
+                    log.warning(f"HDFuryDevice: No successful poll for {time_since_last_poll:.0f}s, forcing reconnect")
+                    if self.client.is_connected():
+                        await self.client.disconnect()
+                
+                # Perform keep-alive heartbeat
+                log.debug(f"HDFuryDevice: Keep-alive heartbeat for {self.host}")
+                
+                # Use the new heartbeat method instead of full polling
+                heartbeat_success = await self.client.heartbeat()
+                
+                if heartbeat_success:
+                    self._last_successful_poll = current_time
+                    
+                    # Update state if we were previously unavailable
+                    if self.state == media_player.States.UNAVAILABLE:
+                        log.info(f"HDFuryDevice: Device {self.host} back online, refreshing state")
+                        await self.start()
+                else:
+                    # Heartbeat failed, mark as unavailable but don't emit update yet
+                    # Give it one more chance on next loop
+                    if self.state != media_player.States.UNAVAILABLE:
+                        log.warning(f"HDFuryDevice: Heartbeat failed for {self.host}, marking unavailable")
+                        self.state = media_player.States.UNAVAILABLE
+                        self.media_title = "Connection Lost"
+                        self.events.emit(EVENTS.UPDATE, self)
+                    
+            except asyncio.CancelledError:
+                log.info(f"HDFuryDevice: Keep-alive loop cancelled for {self.host}")
+                break
+            except Exception as e:
+                log.error(f"HDFuryDevice: Keep-alive error for {self.host}: {e}")
+                self.state = media_player.States.UNAVAILABLE
+                self.media_title = "Connection Error"
+                self.events.emit(EVENTS.UPDATE, self)
+                
+                # Wait before retrying on error (exponential backoff)
+                try:
+                    await asyncio.sleep(60)  # Wait 1 minute before retry on error
+                except asyncio.CancelledError:
+                    break
 
     async def set_power(self, state: bool):
         log.info(f"Setting TX0 power to {'ON' if state else 'OFF'}")
@@ -76,6 +154,7 @@ class HDFuryDevice:
             await self.client.set_output_power(0, state)
             await asyncio.sleep(1)
             self.state = media_player.States.ON if state else media_player.States.OFF
+            self._last_successful_poll = asyncio.get_event_loop().time()
             self.events.emit(EVENTS.UPDATE, self)
         except Exception as e:
             log.error(f"Failed to set power: {e}")
@@ -129,7 +208,9 @@ class HDFuryDevice:
                 log.warning(f"Unsupported command: {actual_cmd}")
                 return api_definitions.StatusCodes.NOT_IMPLEMENTED
             
+            # Refresh device state and update last successful poll time
             await self.start()
+            
         except Exception as e:
             log.error(f"Error executing remote command '{actual_cmd}': {e}", exc_info=True)
             return api_definitions.StatusCodes.SERVER_ERROR

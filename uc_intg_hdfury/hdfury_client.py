@@ -8,6 +8,7 @@ class HDFuryClient:
         self._writer: asyncio.StreamWriter | None = None
         self._lock = asyncio.Lock()
         self._connection_lock = asyncio.Lock()
+        self._last_activity = 0.0  # Track last successful command
 
     def is_connected(self) -> bool:
         return self._writer is not None and not self._writer.is_closing()
@@ -26,6 +27,8 @@ class HDFuryClient:
                     self.log.debug("HDFuryClient: Cleared welcome message from buffer.")
                 except asyncio.TimeoutError:
                     pass
+                
+                self._last_activity = asyncio.get_event_loop().time()
                 self.log.info(f"HDFuryClient: Connected successfully.")
             except Exception as e:
                 self.log.error(f"HDFuryClient: Connection failed: {e}")
@@ -44,32 +47,53 @@ class HDFuryClient:
         finally:
             self._writer = self._reader = None
 
+    async def _ensure_connection(self):
+        """
+        Ensure connection is active, reconnect if needed.
+        HDFury devices may drop inactive connections after ~10-15 minutes.
+        """
+        current_time = asyncio.get_event_loop().time()
+        time_since_activity = current_time - self._last_activity
+        
+        # If more than 10 minutes since last activity, proactively reconnect
+        if time_since_activity > 600:  # 10 minutes
+            self.log.info(f"HDFuryClient: Proactive reconnect after {time_since_activity:.0f}s inactivity")
+            await self.disconnect()
+        
+        if not self.is_connected():
+            await self.connect()
+
     async def send_command(self, command: str, is_retry: bool = False) -> str:
         """
         Sends a command, reads the response to clear the buffer,
-        and handles reconnects.
+        and handles reconnects with enhanced timeout recovery.
         """
         async with self._lock:
             try:
-                if not self.is_connected():
-                    self.log.info("HDFuryClient: Not connected. Attempting to reconnect.")
-                    await self.connect()
+                await self._ensure_connection()
 
                 self.log.debug(f"HDFuryClient: Sending command '{command}'")
                 self._writer.write(f"{command}\r\n".encode('ascii'))
                 await self._writer.drain()
 
-                response = await asyncio.wait_for(self._reader.readline(), timeout=3.0)
+                response = await asyncio.wait_for(self._reader.readline(), timeout=5.0)  # Increased timeout
                 decoded = response.decode('ascii').replace('>', '').strip()
+                self._last_activity = asyncio.get_event_loop().time()  # Update activity timestamp
                 self.log.debug(f"HDFuryClient: Received response for '{command}': '{decoded}'")
                 return decoded
 
             except asyncio.TimeoutError:
+                self.log.warning(f"Command '{command}' timed out - connection may be stale")
+                await self.disconnect()  # Force disconnect on timeout
+                
+                if not is_retry:
+                    self.log.info(f"Retrying command '{command}' after timeout")
+                    return await self.send_command(command, is_retry=True)
+                else:
+                    self.log.error(f"Command '{command}' failed on retry after timeout")
+                    raise asyncio.TimeoutError(f"Command '{command}' timed out on retry")
 
-                self.log.debug(f"Command '{command}' timed out waiting for response, assuming success.")
-                return "OK_TIMEOUT"
-
-            except (ConnectionResetError, BrokenPipeError, ConnectionError) as e:
+            except (ConnectionResetError, BrokenPipeError, ConnectionError, OSError) as e:
                 await self.disconnect()
                 if is_retry:
                     self.log.error(f"HDFuryClient: Command '{command}' failed on retry. Giving up. Error: {e}")
@@ -133,3 +157,15 @@ class HDFuryClient:
 
     async def set_hdcp_mode(self, mode: str):
         await self.send_command(f"set hdcp {mode}")
+
+    async def heartbeat(self) -> bool:
+        """
+        Send a simple heartbeat command to keep connection alive.
+        Returns True if successful, False if connection failed.
+        """
+        try:
+            await self.send_command("get insel")
+            return True
+        except Exception as e:
+            self.log.debug(f"Heartbeat failed: {e}")
+            return False
