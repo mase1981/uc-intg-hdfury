@@ -54,7 +54,7 @@ class HDFuryMediaPlayer(media_player.MediaPlayer):
             elif command == media_player.Commands.PLAY_PAUSE:
                 return api_definitions.StatusCodes.OK
             
-            # Handle simple commands for activities (exposed as entity commands)
+            # Handle commands for activities (exposed as entity commands)
             elif command == "HDMI_0":
                 await self._device.client.set_source("HDMI 0")
                 await self._device.start()
