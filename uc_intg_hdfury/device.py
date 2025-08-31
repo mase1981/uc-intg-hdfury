@@ -36,7 +36,6 @@ class HDFuryDevice:
         self._last_successful_poll: float = 0
         self._keep_alive_interval: int = 180  # 3 minutes - more frequent for HDFury devices
         
-        # CRITICAL: Both entities must share the same device_id (JVC pattern)
         self.media_player_entity = HDFuryMediaPlayer(self)
         self.remote_entity = HDFuryRemote(self)
         

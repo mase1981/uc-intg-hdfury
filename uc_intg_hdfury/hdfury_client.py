@@ -21,7 +21,6 @@ class HDFuryClient:
             try:
                 self._reader, self._writer = await asyncio.wait_for(
                     asyncio.open_connection(self.host, self.port), timeout=10.0)
-                # Clear the buffer of any welcome messages
                 try:
                     await asyncio.wait_for(self._reader.read(2048), timeout=1.0)
                     self.log.debug("HDFuryClient: Cleared welcome message from buffer.")
