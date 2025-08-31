@@ -13,9 +13,9 @@ class HDFuryMediaPlayer(media_player.MediaPlayer):
         self._device = device
         identifier = device.device_id  # Use shared device_id
         
-        # Add SELECT_SOURCE feature for source selection and simple commands for activities
+        # REMOVED ON_OFF feature - HDFury devices don't have power commands
+        # They are designed to stay powered on continuously
         features = [
-            media_player.Features.ON_OFF,
             media_player.Features.SELECT_SOURCE,
         ]
 
@@ -36,13 +36,8 @@ class HDFuryMediaPlayer(media_player.MediaPlayer):
         log.debug(f"HDFuryMediaPlayer received command: {command}")
         
         try:
-            if command == media_player.Commands.ON:
-                await self._device.set_power(True)
-                return api_definitions.StatusCodes.OK
-            elif command == media_player.Commands.OFF:
-                await self._device.set_power(False)
-                return api_definitions.StatusCodes.OK
-            elif command == media_player.Commands.SELECT_SOURCE:
+            # REMOVED: ON/OFF commands - HDFury devices don't support power control
+            if command == media_player.Commands.SELECT_SOURCE:
                 source = kwargs.get("source")
                 if source and source in self._device.source_list:
                     await self._device.client.set_source(source)
@@ -52,9 +47,11 @@ class HDFuryMediaPlayer(media_player.MediaPlayer):
                     log.warning(f"Invalid source requested: {source}")
                     return api_definitions.StatusCodes.BAD_REQUEST
             elif command == media_player.Commands.PLAY_PAUSE:
+                # No-op for HDFury devices - they don't have play/pause concept
                 return api_definitions.StatusCodes.OK
             
             # Handle commands for activities (exposed as entity commands)
+            # These are for direct source switching in activities
             elif command == "HDMI_0":
                 await self._device.client.set_source("HDMI 0")
                 await self._device.start()
