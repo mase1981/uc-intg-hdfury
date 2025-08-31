@@ -64,6 +64,11 @@ async def on_connect() -> None:
     log.info("Remote connected. Setting driver state to CONNECTED.")
     await api.set_device_state(DeviceStates.CONNECTED)
 
+@api.listens_to(api_definitions.Events.DISCONNECT)
+async def on_disconnect() -> None:
+    log.info("Remote disconnected. Keeping devices running for reconnection.")
+    # Don't stop devices on remote disconnect - keep them running for reconnection
+
 @api.listens_to(api_definitions.Events.SUBSCRIBE_ENTITIES)
 async def on_subscribe_entities(entity_ids: list[str]):
     all_device_ids = { eid.split('.')[-1].split('-remote')[0] for eid in entity_ids }
@@ -71,8 +76,14 @@ async def on_subscribe_entities(entity_ids: list[str]):
     for identifier in all_device_ids:
         if identifier in configured_devices:
             device = configured_devices[identifier]
-            if not device.client.is_connected(): await device.start()
+            if not device.client.is_connected(): 
+                await device.start()
             push_device_state(device)
+
+@api.listens_to(api_definitions.Events.UNSUBSCRIBE_ENTITIES)
+async def on_unsubscribe_entities(entity_ids: list[str]):
+    # Don't disconnect devices when unsubscribing - keep them alive for quick reconnection
+    log.info(f"Entities unsubscribed: {entity_ids}")
 
 def on_device_update(device: HDFuryDevice):
     push_device_state(device)
@@ -114,6 +125,12 @@ def add_device(device_config: HDFuryDeviceConfig):
     device.events.on(EVENTS.UPDATE, on_device_update)
     configured_devices[identifier] = device
 
+async def cleanup_on_shutdown():
+    """Cleanup function to properly stop all devices before shutdown"""
+    log.info("Shutting down HDFury driver...")
+    if configured_devices:
+        await asyncio.gather(*[d.stop() for d in configured_devices.values()], return_exceptions=True)
+
 async def main():
     global devices_config
     log.info("Starting HDFury driver...")
@@ -135,6 +152,5 @@ if __name__ == "__main__":
     except (KeyboardInterrupt, asyncio.CancelledError):
         log.info("Driver stopped.")
     finally:
-        if configured_devices:
-            loop.run_until_complete(asyncio.gather(*[d.stop() for d in configured_devices.values()]))
+        loop.run_until_complete(cleanup_on_shutdown())
         loop.close()

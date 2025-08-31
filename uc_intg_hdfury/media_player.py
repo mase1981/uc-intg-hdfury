@@ -13,6 +13,7 @@ class HDFuryMediaPlayer(media_player.MediaPlayer):
         self._device = device
         identifier = device.device_id  # Use shared device_id
         
+        # Add SELECT_SOURCE feature for source selection and simple commands for activities
         features = [
             media_player.Features.ON_OFF,
             media_player.Features.SELECT_SOURCE,
@@ -22,9 +23,12 @@ class HDFuryMediaPlayer(media_player.MediaPlayer):
             identifier=identifier,
             name=device.name,
             features=features,
-            attributes={ "state": media_player.States.UNAVAILABLE },
+            attributes={ 
+                "state": media_player.States.UNAVAILABLE,
+                "source_list": [],
+                "source": None,
+            },
             device_class=media_player.DeviceClasses.RECEIVER,
-            # REMOVED: device_id parameter - this was causing the error
             cmd_handler=self.handle_command
         )
 
@@ -32,20 +36,44 @@ class HDFuryMediaPlayer(media_player.MediaPlayer):
         log.debug(f"HDFuryMediaPlayer received command: {command}")
         
         try:
-            if command == media_player.Commands.SELECT_SOURCE:
-                source = kwargs.get("source")
-                if source:
-                    await self._device.client.set_source(source)
-                    await self._device.start()
-            elif command == media_player.Commands.ON:
+            if command == media_player.Commands.ON:
                 await self._device.set_power(True)
+                return api_definitions.StatusCodes.OK
             elif command == media_player.Commands.OFF:
                 await self._device.set_power(False)
+                return api_definitions.StatusCodes.OK
+            elif command == media_player.Commands.SELECT_SOURCE:
+                source = kwargs.get("source")
+                if source and source in self._device.source_list:
+                    await self._device.client.set_source(source)
+                    await self._device.start()  # Refresh state
+                    return api_definitions.StatusCodes.OK
+                else:
+                    log.warning(f"Invalid source requested: {source}")
+                    return api_definitions.StatusCodes.BAD_REQUEST
+            elif command == media_player.Commands.PLAY_PAUSE:
+                return api_definitions.StatusCodes.OK
+            
+            # Handle simple commands for activities (exposed as entity commands)
+            elif command == "HDMI_0":
+                await self._device.client.set_source("HDMI 0")
+                await self._device.start()
+                return api_definitions.StatusCodes.OK
+            elif command == "HDMI_1":
+                await self._device.client.set_source("HDMI 1")
+                await self._device.start()
+                return api_definitions.StatusCodes.OK
+            elif command == "HDMI_2":
+                await self._device.client.set_source("HDMI 2")
+                await self._device.start()
+                return api_definitions.StatusCodes.OK
+            elif command == "HDMI_3":
+                await self._device.client.set_source("HDMI 3")
+                await self._device.start()
+                return api_definitions.StatusCodes.OK
             else:
                 log.warning(f"Received unhandled command: {command}")
                 return api_definitions.StatusCodes.NOT_IMPLEMENTED
         except Exception as e:
             log.error(f"Failed to execute command {command}: {e}")
             return api_definitions.StatusCodes.SERVER_ERROR
-            
-        return api_definitions.StatusCodes.OK
