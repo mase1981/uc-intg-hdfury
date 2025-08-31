@@ -24,6 +24,7 @@ class HDFuryDevice:
         # Generate a unique device_id - CRITICAL for entity lifecycle synchronization
         self.device_id = f"hdfury-{host.replace('.', '-')}" 
         
+        # HDFury devices are always ON when connected - no power state concept
         self.state: media_player.States = media_player.States.UNAVAILABLE
         self.source_list: list[str] = []
         self.current_source: str | None = None
@@ -35,6 +36,9 @@ class HDFuryDevice:
         self._keep_alive_task: asyncio.Task | None = None
         self._last_successful_poll: float = 0
         self._keep_alive_interval: int = 180  # 3 minutes - more frequent for HDFury devices
+        
+        # Command execution tracking to prevent state corruption during activities
+        self._command_in_progress: bool = False
         
         self.media_player_entity = HDFuryMediaPlayer(self)
         self.remote_entity = HDFuryRemote(self)
@@ -58,6 +62,7 @@ class HDFuryDevice:
             if self.media_artist and "onnected" in self.media_artist:
                 self.media_artist = self.media_artist.replace("onnected", "connected")
             
+            # HDFury devices are always ON when connected and responding
             self.state = media_player.States.ON
             self._last_successful_poll = asyncio.get_event_loop().time()
             
@@ -66,10 +71,12 @@ class HDFuryDevice:
                 self._keep_alive_task = asyncio.create_task(self._keep_alive_loop())
 
         except Exception as e:
-            self.state = media_player.States.UNAVAILABLE
-            self.media_title = "Offline"
-            self.media_artist = ""
-            self.media_album = ""
+            # Don't mark as unavailable if a command is in progress
+            if not self._command_in_progress:
+                self.state = media_player.States.UNAVAILABLE
+                self.media_title = "Offline"
+                self.media_artist = ""
+                self.media_album = ""
             log.error(f"HDFuryDevice connection error: {e}", exc_info=True)
         
         self.events.emit(EVENTS.UPDATE, self)
@@ -87,7 +94,8 @@ class HDFuryDevice:
         
         if self.client.is_connected(): 
             await self.client.disconnect()
-        self.state = media_player.States.OFF
+        # HDFury devices don't have OFF state - they're either connected/available or unavailable
+        self.state = media_player.States.UNAVAILABLE
         self.events.emit(EVENTS.UPDATE, self)
 
     async def _keep_alive_loop(self):
@@ -100,6 +108,11 @@ class HDFuryDevice:
         while True:
             try:
                 await asyncio.sleep(self._keep_alive_interval)
+                
+                # Skip heartbeat if command is in progress
+                if self._command_in_progress:
+                    log.debug(f"HDFuryDevice: Skipping heartbeat - command in progress")
+                    continue
                 
                 current_time = asyncio.get_event_loop().time()
                 time_since_last_poll = current_time - self._last_successful_poll
@@ -137,9 +150,11 @@ class HDFuryDevice:
                 break
             except Exception as e:
                 log.error(f"HDFuryDevice: Keep-alive error for {self.host}: {e}")
-                self.state = media_player.States.UNAVAILABLE
-                self.media_title = "Connection Error"
-                self.events.emit(EVENTS.UPDATE, self)
+                # Don't mark unavailable if command is in progress
+                if not self._command_in_progress:
+                    self.state = media_player.States.UNAVAILABLE
+                    self.media_title = "Connection Error"
+                    self.events.emit(EVENTS.UPDATE, self)
                 
                 # Wait before retrying on error (exponential backoff)
                 try:
@@ -147,19 +162,9 @@ class HDFuryDevice:
                 except asyncio.CancelledError:
                     break
 
-    async def set_power(self, state: bool):
-        log.info(f"Setting TX0 power to {'ON' if state else 'OFF'}")
-        try:
-            await self.client.set_output_power(0, state)
-            await asyncio.sleep(1)
-            self.state = media_player.States.ON if state else media_player.States.OFF
-            self._last_successful_poll = asyncio.get_event_loop().time()
-            self.events.emit(EVENTS.UPDATE, self)
-        except Exception as e:
-            log.error(f"Failed to set power: {e}")
-            self.state = media_player.States.UNAVAILABLE
-            self.events.emit(EVENTS.UPDATE, self)
-    
+    # REMOVED: set_power method - HDFury VRRoom doesn't have power commands
+    # The device is designed to stay powered on continuously
+
     async def handle_remote_command(self, entity, cmd_id, kwargs):
         actual_cmd = kwargs.get("command")
         
@@ -168,6 +173,11 @@ class HDFuryDevice:
             return api_definitions.StatusCodes.BAD_REQUEST
 
         log.info(f"HDFuryDevice received remote command: {actual_cmd}")
+        
+        # Mark command as in progress for complex commands
+        is_complex_command = any(x in actual_cmd for x in ["set_source_", "set_edidmode_", "set_hdrcustom_", "set_cec_"])
+        if is_complex_command:
+            self._command_in_progress = True
         
         try:
             if actual_cmd.startswith("set_source_"):
@@ -207,11 +217,23 @@ class HDFuryDevice:
                 log.warning(f"Unsupported command: {actual_cmd}")
                 return api_definitions.StatusCodes.NOT_IMPLEMENTED
             
-            # Refresh device state and update last successful poll time
-            await self.start()
+            # For complex commands, try to refresh state but don't fail on timeout
+            if is_complex_command:
+                try:
+                    await asyncio.wait_for(self.start(), timeout=8.0)
+                except asyncio.TimeoutError:
+                    log.warning(f"State refresh timed out after command '{actual_cmd}', but command likely succeeded")
+                    # Update last successful poll time anyway
+                    self._last_successful_poll = asyncio.get_event_loop().time()
+            else:
+                # For simple commands, just update the timestamp
+                self._last_successful_poll = asyncio.get_event_loop().time()
             
         except Exception as e:
             log.error(f"Error executing remote command '{actual_cmd}': {e}", exc_info=True)
             return api_definitions.StatusCodes.SERVER_ERROR
+        finally:
+            if is_complex_command:
+                self._command_in_progress = False
 
         return api_definitions.StatusCodes.OK

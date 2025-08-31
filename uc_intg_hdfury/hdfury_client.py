@@ -62,27 +62,41 @@ class HDFuryClient:
         if not self.is_connected():
             await self.connect()
 
+    def _get_command_timeout(self, command: str) -> float:
+        """
+        Get appropriate timeout for different command types.
+        Most HDFury commands respond quickly, but some may need extra time.
+        """
+        if "set" in command:
+            return 8.0   # Set commands get 8 seconds  
+        else:
+            return 5.0   # Get commands use standard 5 seconds
+
     async def send_command(self, command: str, is_retry: bool = False) -> str:
         """
         Sends a command, reads the response to clear the buffer,
         and handles reconnects with enhanced timeout recovery.
+        Uses adaptive timeouts based on command type.
         """
         async with self._lock:
             try:
                 await self._ensure_connection()
-
-                self.log.debug(f"HDFuryClient: Sending command '{command}'")
+                
+                # Use adaptive timeout based on command type
+                timeout = self._get_command_timeout(command)
+                
+                self.log.debug(f"HDFuryClient: Sending command '{command}' (timeout: {timeout}s)")
                 self._writer.write(f"{command}\r\n".encode('ascii'))
                 await self._writer.drain()
 
-                response = await asyncio.wait_for(self._reader.readline(), timeout=5.0)  # Increased timeout
+                response = await asyncio.wait_for(self._reader.readline(), timeout=timeout)
                 decoded = response.decode('ascii').replace('>', '').strip()
                 self._last_activity = asyncio.get_event_loop().time()  # Update activity timestamp
                 self.log.debug(f"HDFuryClient: Received response for '{command}': '{decoded}'")
                 return decoded
 
             except asyncio.TimeoutError:
-                self.log.warning(f"Command '{command}' timed out - connection may be stale")
+                self.log.warning(f"Command '{command}' timed out after {timeout}s - connection may be stale")
                 await self.disconnect()  # Force disconnect on timeout
                 
                 if not is_retry:
@@ -126,9 +140,8 @@ class HDFuryClient:
         prefix = f"get status {target}"
         return response[len(prefix):].strip() if response.startswith(prefix) else response
         
-    async def set_output_power(self, output: int, state: bool):
-        command = f"set tx{output}plus5 {'on' if state else 'off'}"
-        await self.send_command(command)
+    # REMOVED: set_output_power method - HDFury VRRoom doesn't have power on/off
+    # The device is designed to stay powered on continuously
     
     async def set_edid_mode(self, mode: str):
         await self.send_command(f"set edidmode {mode}")
