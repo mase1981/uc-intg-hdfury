@@ -16,7 +16,6 @@ This integration creates two distinct entities on your remote:
 ## Features
 
 * **IP Control:** No need for IR emitters. Control your HDFury device directly over your local network.
-* **Power Control:** Turn the primary HDMI output (TX0) On and Off.
 * **Input Switching:** Directly select any of the 4 HDMI inputs.
 * **Advanced Remote UI:** A multi-page remote entity provides control over:
     * **EDID:** Control EDID mode and Automix audio sources.
