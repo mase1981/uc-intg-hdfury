@@ -24,22 +24,26 @@ class HDFuryDevice:
         self.device_id = f"hdfury-{host.replace('.', '-')}" 
         
         self.state: media_player.States = media_player.States.UNAVAILABLE
+        # Fixed source list - no need to poll device for this
         self.source_list: list[str] = ["HDMI 0", "HDMI 1", "HDMI 2", "HDMI 3"]
         self.current_source: str | None = None
-        self.media_title: str | None = "Offline"
+        self.media_title: str | None = "Ready"
         self.media_artist: str | None = ""
         self.media_album: str | None = ""
         
+        # Keep-alive tracking - simplified
         self._keep_alive_task: asyncio.Task | None = None
-        self._last_successful_poll: float = 0
-        self._keep_alive_interval: int = 300
+        self._last_successful_command: float = 0
+        self._keep_alive_interval: int = 600  # 10 minutes - very infrequent
         
+        # Command execution tracking
         self._command_in_progress: bool = False
         
+        # Command queue and rate limiting for activities
         self._command_queue: asyncio.Queue = asyncio.Queue()
         self._command_processor_task: asyncio.Task | None = None
         self._last_command_time: float = 0
-        self._min_command_interval: float = 0.5
+        self._min_command_interval: float = 0.5  # 500ms between commands
         
         self.media_player_entity = HDFuryMediaPlayer(self)
         self.remote_entity = HDFuryRemote(self)
@@ -47,6 +51,7 @@ class HDFuryDevice:
     async def start(self):
         log.info(f"HDFuryDevice: Starting connection for {self.host}")
         
+        # Start command processor if not already running
         if not self._command_processor_task or self._command_processor_task.done():
             self._command_processor_task = asyncio.create_task(self._process_command_queue())
         
@@ -54,16 +59,19 @@ class HDFuryDevice:
             if not self.client.is_connected(): 
                 await self.client.connect()
             
-
-            test_response = await self.client.send_command("get version")
-            if test_response:
+            # Minimal connection verification - just check if connection exists
+            # Don't send any commands that could timeout
+            if self.client.is_connected():
+                # Device is connected - mark as available
                 self.state = media_player.States.ON
-                self._last_successful_poll = asyncio.get_event_loop().time()
+                self.media_title = "Ready"
+                self._last_successful_command = asyncio.get_event_loop().time()
                 
+                # Start keep-alive task if not already running
                 if not self._keep_alive_task or self._keep_alive_task.done():
                     self._keep_alive_task = asyncio.create_task(self._keep_alive_loop())
             else:
-                raise Exception("Device not responding to version command")
+                raise Exception("Failed to establish connection")
 
         except Exception as e:
             self.state = media_player.States.UNAVAILABLE
@@ -104,13 +112,15 @@ class HDFuryDevice:
         
         while True:
             try:
+                # Get next command from queue
                 command_data = await self._command_queue.get()
                 
-                if command_data is None:
+                if command_data is None:  # Shutdown signal
                     break
                 
                 command, future = command_data
                 
+                # Rate limiting: ensure minimum interval between commands
                 current_time = asyncio.get_event_loop().time()
                 time_since_last = current_time - self._last_command_time
                 
@@ -119,13 +129,18 @@ class HDFuryDevice:
                     log.debug(f"Rate limiting: sleeping {sleep_time:.2f}s before command")
                     await asyncio.sleep(sleep_time)
                 
+                # Execute command
                 try:
                     result = await self._execute_command_internal(command)
                     future.set_result(result)
                     self._last_command_time = asyncio.get_event_loop().time()
+                    # Update successful command timestamp when commands work
+                    if result == api_definitions.StatusCodes.OK:
+                        self._last_successful_command = self._last_command_time
                 except Exception as e:
                     future.set_exception(e)
                 
+                # Mark task as done
                 self._command_queue.task_done()
                 
             except asyncio.CancelledError:
@@ -144,7 +159,6 @@ class HDFuryDevice:
                 await self.client.set_source(source)
                 # Update local state immediately
                 self.current_source = source
-                self._last_successful_poll = asyncio.get_event_loop().time()
                 
             elif command.startswith("set_edidmode_"):
                 mode = command.replace("set_edidmode_", "")
@@ -209,7 +223,8 @@ class HDFuryDevice:
 
     async def _keep_alive_loop(self):
         """
-        Simplified keep-alive that just maintains connection without polling status.
+        Minimal keep-alive that only checks connection health when needed.
+        No status commands that could timeout.
         """
         log.info(f"HDFuryDevice: Starting keep-alive loop for {self.host}")
         
@@ -219,34 +234,34 @@ class HDFuryDevice:
                 
                 # Skip heartbeat if command is in progress or queue is busy
                 if self._command_in_progress or not self._command_queue.empty():
-                    log.debug(f"HDFuryDevice: Skipping heartbeat - commands in progress")
                     continue
                 
                 current_time = asyncio.get_event_loop().time()
-                time_since_last_poll = current_time - self._last_successful_poll
+                time_since_last_command = current_time - self._last_successful_command
                 
-                if time_since_last_poll > 600:  # 10 minutes
-                    log.debug(f"HDFuryDevice: Checking connection health for {self.host}")
+                # Only check connection if it's been more than 20 minutes since last successful command
+                if time_since_last_command > 1200:  # 20 minutes
+                    log.debug(f"HDFuryDevice: Connection idle for {time_since_last_command:.0f}s, checking health")
                     
-                    try:
-                        test_response = await asyncio.wait_for(
-                            self.client.send_command("get version"), timeout=3.0
-                        )
-                        if test_response:
-                            self._last_successful_poll = current_time
-                            # Update state if we were previously unavailable
-                            if self.state == media_player.States.UNAVAILABLE:
-                                log.info(f"HDFuryDevice: Device {self.host} back online")
-                                self.state = media_player.States.ON
-                                self.events.emit(EVENTS.UPDATE, self)
-                        else:
-                            raise Exception("No response to version command")
-                    except Exception as e:
-                        log.warning(f"HDFuryDevice: Connection check failed for {self.host}: {e}")
+                    # Simple connection check - just verify socket is still open
+                    if not self.client.is_connected():
+                        log.warning(f"HDFuryDevice: Connection lost for {self.host}")
                         if self.state != media_player.States.UNAVAILABLE:
                             self.state = media_player.States.UNAVAILABLE
                             self.media_title = "Connection Lost"
                             self.events.emit(EVENTS.UPDATE, self)
+                        
+                        # Try to reconnect
+                        try:
+                            await self.client.connect()
+                            if self.client.is_connected():
+                                self.state = media_player.States.ON
+                                self.media_title = "Ready"
+                                self._last_successful_command = current_time
+                                self.events.emit(EVENTS.UPDATE, self)
+                                log.info(f"HDFuryDevice: Reconnected to {self.host}")
+                        except Exception as e:
+                            log.warning(f"HDFuryDevice: Reconnection failed for {self.host}: {e}")
                     
             except asyncio.CancelledError:
                 log.info(f"HDFuryDevice: Keep-alive loop cancelled for {self.host}")
@@ -254,8 +269,9 @@ class HDFuryDevice:
             except Exception as e:
                 log.error(f"HDFuryDevice: Keep-alive error for {self.host}: {e}")
                 
+                # Wait before retrying on error
                 try:
-                    await asyncio.sleep(60)
+                    await asyncio.sleep(60)  # Wait 1 minute before retry on error
                 except asyncio.CancelledError:
                     break
 
@@ -268,8 +284,10 @@ class HDFuryDevice:
 
         log.info(f"HDFuryDevice received remote command: {actual_cmd}")
         
+        # Use the command queue for all commands to prevent overload
         result = await self._queue_command(actual_cmd)
         
+        # Emit update event for UI refresh (lightweight)
         if result == api_definitions.StatusCodes.OK:
             self.events.emit(EVENTS.UPDATE, self)
         
