@@ -13,8 +13,6 @@ class HDFuryMediaPlayer(media_player.MediaPlayer):
         self._device = device
         identifier = device.device_id  # Use shared device_id
         
-        # REMOVED ON_OFF feature - HDFury devices don't have power commands
-        # They are designed to stay powered on continuously
         features = [
             media_player.Features.SELECT_SOURCE,
         ]
@@ -25,7 +23,7 @@ class HDFuryMediaPlayer(media_player.MediaPlayer):
             features=features,
             attributes={ 
                 "state": media_player.States.UNAVAILABLE,
-                "source_list": [],
+                "source_list": ["HDMI 0", "HDMI 1", "HDMI 2", "HDMI 3"],  # Always provide fixed list
                 "source": None,
             },
             device_class=media_player.DeviceClasses.RECEIVER,
@@ -36,37 +34,40 @@ class HDFuryMediaPlayer(media_player.MediaPlayer):
         log.debug(f"HDFuryMediaPlayer received command: {command}")
         
         try:
-            # REMOVED: ON/OFF commands - HDFury devices don't support power control
             if command == media_player.Commands.SELECT_SOURCE:
                 source = kwargs.get("source")
-                if source and source in self._device.source_list:
+                valid_sources = ["HDMI 0", "HDMI 1", "HDMI 2", "HDMI 3"]
+                if source and source in valid_sources:
                     await self._device.client.set_source(source)
-                    await self._device.start()  # Refresh state
+                    self._device.current_source = source
+                    self._device.events.emit(self._device.EVENTS.UPDATE, self._device)
                     return api_definitions.StatusCodes.OK
                 else:
                     log.warning(f"Invalid source requested: {source}")
                     return api_definitions.StatusCodes.BAD_REQUEST
+                    
             elif command == media_player.Commands.PLAY_PAUSE:
-                # No-op for HDFury devices - they don't have play/pause concept
                 return api_definitions.StatusCodes.OK
             
-            # Handle commands for activities (exposed as entity commands)
-            # These are for direct source switching in activities
             elif command == "HDMI_0":
                 await self._device.client.set_source("HDMI 0")
-                await self._device.start()
+                self._device.current_source = "HDMI 0"
+                self._device.events.emit(self._device.EVENTS.UPDATE, self._device)
                 return api_definitions.StatusCodes.OK
             elif command == "HDMI_1":
                 await self._device.client.set_source("HDMI 1")
-                await self._device.start()
+                self._device.current_source = "HDMI 1"
+                self._device.events.emit(self._device.EVENTS.UPDATE, self._device)
                 return api_definitions.StatusCodes.OK
             elif command == "HDMI_2":
                 await self._device.client.set_source("HDMI 2")
-                await self._device.start()
+                self._device.current_source = "HDMI 2"
+                self._device.events.emit(self._device.EVENTS.UPDATE, self._device)
                 return api_definitions.StatusCodes.OK
             elif command == "HDMI_3":
                 await self._device.client.set_source("HDMI 3")
-                await self._device.start()
+                self._device.current_source = "HDMI 3"
+                self._device.events.emit(self._device.EVENTS.UPDATE, self._device)
                 return api_definitions.StatusCodes.OK
             else:
                 log.warning(f"Received unhandled command: {command}")
