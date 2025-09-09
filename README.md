@@ -1,7 +1,7 @@
 # HDFury VRROOM Integration for Unfolded Circle
 
 This is a custom integration for the Unfolded Circle Remote family that allows for IP control of HDFury VRROOM devices.
-![Version](https://img.shields.io/badge/version-0.1.19-green)
+![Version](https://img.shields.io/badge/version-0.1.20-green)
 ![License](https://img.shields.io/badge/license-MPL--2.0-orange)
  [![Buy Me A Coffee](https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg)](https://buymeacoffee.com/meirmiyara)
 [![PayPal](https://img.shields.io/badge/PayPal-donate-blue.svg)](https://paypal.me/mmiyara)
