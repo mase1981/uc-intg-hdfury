@@ -5,6 +5,7 @@ from ucapi import media_player, entity, api_definitions
 
 if TYPE_CHECKING:
     from uc_intg_hdfury.device import HDFuryDevice
+from uc_intg_hdfury.device import EVENTS
 
 log = logging.getLogger(__name__)
 
