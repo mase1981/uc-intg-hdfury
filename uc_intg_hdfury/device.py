@@ -276,6 +276,11 @@ class HDFuryDevice:
                     break
 
     async def handle_remote_command(self, entity, cmd_id, kwargs):
+        # Handle None kwargs properly
+        if kwargs is None:
+            log.error(f"HDFuryDevice received command with None kwargs: {cmd_id}")
+            return api_definitions.StatusCodes.BAD_REQUEST
+            
         actual_cmd = kwargs.get("command")
         
         if not actual_cmd:
