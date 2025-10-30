@@ -1,12 +1,17 @@
 version: '3.8'
+
 services:
-  uc-intg-hdfury:
-    build: .
+  hdfury-integration:
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: uc-intg-hdfury
     restart: unless-stopped
     network_mode: host
-    environment:
-      - UC_INTEGRATION_HTTP_PORT=9029
-      - UC_CONFIG_HOME=/config
     volumes:
-      - ./config:/config
+      - ./data:/data
+    environment:
+      - UC_CONFIG_HOME=/data
+      - UC_INTEGRATION_INTERFACE=0.0.0.0
+      - UC_INTEGRATION_HTTP_PORT=9029
+      - UC_DISABLE_MDNS_PUBLISH=false

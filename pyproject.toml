@@ -1,15 +1,70 @@
-[tool.poetry]
-name = "uc-intg-hdfury"
-version = "0.1.21"
-description = "Unfolded Circle integration for HDFury devices."
-authors = ["Meir Miyara <meir.miyara@gmail.com>"]
-readme = "README.md"
-packages = [{include = "uc_intg_hdfury", from = "src"}]
-
-[tool.poetry.dependencies]
-python = "^3.9"
-ucapi==0.3.1
-
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=65.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "uc-intg-hdfury"
+dynamic = ["version"]
+description = "Unfolded Circle Integration for HDFury devices"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MPL-2.0" }
+authors = [
+    { name = "Meir Miyara", email = "meir.miyara@gmail.com" }
+]
+keywords = ["unfoldedcircle", "integration", "hdfury", "vrroom", "hdmi"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Mozilla Public License 2.0 (MPL-2.0)",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Home Automation",
+]
+
+dependencies = [
+    "ucapi>=0.3.1",
+    "pyee~=9.0.4",
+    "certifi",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "black>=23.7.0",
+    "isort>=5.12.0",
+    "flake8>=6.1.0",
+    "pylint>=2.17.5",
+]
+
+[project.urls]
+Homepage = "https://github.com/mase1981/uc-intg-hdfury"
+Documentation = "https://github.com/mase1981/uc-intg-hdfury/blob/main/README.md"
+Repository = "https://github.com/mase1981/uc-intg-hdfury"
+Issues = "https://github.com/mase1981/uc-intg-hdfury/issues"
+
+[tool.setuptools]
+packages = ["uc_intg_hdfury"]
+
+[tool.setuptools.dynamic]
+version = {attr = "uc_intg_hdfury.__version__"}
+
+[tool.black]
+line-length = 100
+target-version = ['py311']
+
+[tool.isort]
+profile = "black"
+line_length = 100
+
+[tool.pylint.messages_control]
+max-line-length = 100
+disable = [
+    "C0103",
+    "C0114",
+    "R0913",
+]
