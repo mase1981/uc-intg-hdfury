@@ -1,3 +1,9 @@
+"""
+HDFury Integration for Unfolded Circle Remote Two/3.
+
+:copyright: (c) 2025 by Meir Miyara.
+:license: MPL-2.0, see LICENSE for more details.
+"""
 import asyncio
 import logging
 from uc_intg_hdfury.models import ModelConfig, format_source_for_command
