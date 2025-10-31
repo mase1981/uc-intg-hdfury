@@ -11,11 +11,11 @@ log = logging.getLogger(__name__)
 class HDFuryMediaPlayer(media_player.MediaPlayer):
     def __init__(self, device: HDFuryDevice):
         self._device = device
-        identifier = device.device_id  # Use shared device_id
+        identifier = device.device_id
         
-        features = [
-            media_player.Features.SELECT_SOURCE,
-        ]
+        features = []
+        if device.model_config.input_count > 0:
+            features.append(media_player.Features.SELECT_SOURCE)
 
         super().__init__(
             identifier=identifier,
@@ -23,7 +23,7 @@ class HDFuryMediaPlayer(media_player.MediaPlayer):
             features=features,
             attributes={ 
                 "state": media_player.States.UNAVAILABLE,
-                "source_list": ["HDMI 0", "HDMI 1", "HDMI 2", "HDMI 3"],  # Always provide fixed list
+                "source_list": device.source_list,
                 "source": None,
             },
             device_class=media_player.DeviceClasses.RECEIVER,
@@ -38,8 +38,7 @@ class HDFuryMediaPlayer(media_player.MediaPlayer):
         try:
             if command == media_player.Commands.SELECT_SOURCE:
                 source = kwargs.get("source")
-                valid_sources = ["HDMI 0", "HDMI 1", "HDMI 2", "HDMI 3"]
-                if source and source in valid_sources:
+                if source and source in self._device.source_list:
                     await self._device.client.set_source(source)
                     self._device.current_source = source
                     self._device.events.emit(EVENTS.UPDATE, self._device)
@@ -51,27 +50,15 @@ class HDFuryMediaPlayer(media_player.MediaPlayer):
             elif command == media_player.Commands.PLAY_PAUSE:
                 return api_definitions.StatusCodes.OK
             
-            elif command == "HDMI_0":
-                await self._device.client.set_source("HDMI 0")
-                self._device.current_source = "HDMI 0"
-                self._device.events.emit(EVENTS.UPDATE, self._device)
-                return api_definitions.StatusCodes.OK
-            elif command == "HDMI_1":
-                await self._device.client.set_source("HDMI 1")
-                self._device.current_source = "HDMI 1"
-                self._device.events.emit(EVENTS.UPDATE, self._device)
-                return api_definitions.StatusCodes.OK
-            elif command == "HDMI_2":
-                await self._device.client.set_source("HDMI 2")
-                self._device.current_source = "HDMI 2"
-                self._device.events.emit(EVENTS.UPDATE, self._device)
-                return api_definitions.StatusCodes.OK
-            elif command == "HDMI_3":
-                await self._device.client.set_source("HDMI 3")
-                self._device.current_source = "HDMI 3"
-                self._device.events.emit(EVENTS.UPDATE, self._device)
-                return api_definitions.StatusCodes.OK
             else:
+                for source in self._device.source_list:
+                    source_cmd = source.replace(" ", "_")
+                    if command == source_cmd:
+                        await self._device.client.set_source(source)
+                        self._device.current_source = source
+                        self._device.events.emit(EVENTS.UPDATE, self._device)
+                        return api_definitions.StatusCodes.OK
+                
                 log.warning(f"Received unhandled command: {command}")
                 return api_definitions.StatusCodes.NOT_IMPLEMENTED
         except Exception as e:

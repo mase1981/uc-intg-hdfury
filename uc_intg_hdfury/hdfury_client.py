@@ -1,14 +1,16 @@
 import asyncio
 import logging
+from uc_intg_hdfury.models import ModelConfig, format_source_for_command
 
 class HDFuryClient:
-    def __init__(self, host: str, port: int, log: logging.Logger):
+    def __init__(self, host: str, port: int, log: logging.Logger, model_config: ModelConfig):
         self.host, self.port, self.log = host, port, log
+        self.model_config = model_config
         self._reader: asyncio.StreamReader | None = None
         self._writer: asyncio.StreamWriter | None = None
         self._lock = asyncio.Lock()
         self._connection_lock = asyncio.Lock()
-        self._last_activity = 0.0  # Track last successful command
+        self._last_activity = 0.0
 
     def is_connected(self) -> bool:
         return self._writer is not None and not self._writer.is_closing()
@@ -47,15 +49,10 @@ class HDFuryClient:
             self._writer = self._reader = None
 
     async def _ensure_connection(self):
-        """
-        Ensure connection is active, reconnect if needed.
-        HDFury devices may drop inactive connections after ~10-15 minutes.
-        """
         current_time = asyncio.get_event_loop().time()
         time_since_activity = current_time - self._last_activity
         
-        # If more than 10 minutes since last activity, proactively reconnect
-        if time_since_activity > 600:  # 10 minutes
+        if time_since_activity > 600:
             self.log.info(f"HDFuryClient: Proactive reconnect after {time_since_activity:.0f}s inactivity")
             await self.disconnect()
         
@@ -63,26 +60,16 @@ class HDFuryClient:
             await self.connect()
 
     def _get_command_timeout(self, command: str) -> float:
-        """
-        Get appropriate timeout for different command types.
-        Most HDFury commands respond quickly, but some may need extra time.
-        """
         if "set" in command:
-            return 8.0   # Set commands get 8 seconds  
+            return 8.0
         else:
-            return 5.0   # Get commands use standard 5 seconds
+            return 5.0
 
     async def send_command(self, command: str, is_retry: bool = False) -> str:
-        """
-        Sends a command, reads the response to clear the buffer,
-        and handles reconnects with enhanced timeout recovery.
-        Uses adaptive timeouts based on command type.
-        """
         async with self._lock:
             try:
                 await self._ensure_connection()
                 
-                # Use adaptive timeout based on command type
                 timeout = self._get_command_timeout(command)
                 
                 self.log.debug(f"HDFuryClient: Sending command '{command}' (timeout: {timeout}s)")
@@ -91,13 +78,13 @@ class HDFuryClient:
 
                 response = await asyncio.wait_for(self._reader.readline(), timeout=timeout)
                 decoded = response.decode('ascii').replace('>', '').strip()
-                self._last_activity = asyncio.get_event_loop().time()  # Update activity timestamp
+                self._last_activity = asyncio.get_event_loop().time()
                 self.log.debug(f"HDFuryClient: Received response for '{command}': '{decoded}'")
                 return decoded
 
             except asyncio.TimeoutError:
                 self.log.warning(f"Command '{command}' timed out after {timeout}s - connection may be stale")
-                await self.disconnect()  # Force disconnect on timeout
+                await self.disconnect()
                 
                 if not is_retry:
                     self.log.info(f"Retrying command '{command}' after timeout")
@@ -119,30 +106,13 @@ class HDFuryClient:
                 await self.disconnect()
                 raise
 
-    async def get_device_name(self) -> str:
-        return "VRRoom"
-
-    async def get_source_list(self) -> list[str]:
-        return ["HDMI 0", "HDMI 1", "HDMI 2", "HDMI 3"]
-
-    async def get_current_source(self) -> str | None:
-        response = await self.send_command("get insel")
-        parts = response.split()
-        if len(parts) >= 2 and parts[0] == "insel":
-            return f"HDMI {int(parts[1])}"
-        return None
-
     async def set_source(self, source: str):
-        await self.send_command(f"set inseltx0 {source.replace('HDMI', '').strip()}")
+        formatted_source = format_source_for_command(source, self.model_config)
+        if self.model_config.model_id == "vertex":
+            await self.send_command(f"set input {formatted_source}")
+        elif self.model_config.source_command:
+            await self.send_command(f"set {self.model_config.source_command} {formatted_source}")
 
-    async def get_status(self, target: str) -> str:
-        response = await self.send_command(f"get status {target}")
-        prefix = f"get status {target}"
-        return response[len(prefix):].strip() if response.startswith(prefix) else response
-        
-    # REMOVED: set_output_power method - HDFury VRRoom doesn't have power on/off
-    # The device is designed to stay powered on continuously
-    
     async def set_edid_mode(self, mode: str):
         await self.send_command(f"set edidmode {mode}")
 
@@ -168,15 +138,25 @@ class HDFuryClient:
         await self.send_command(f"set autosw {'on' if state else 'off'}")
 
     async def set_hdcp_mode(self, mode: str):
+        if mode == "14":
+            mode = "1.4"
         await self.send_command(f"set hdcp {mode}")
 
+    async def set_scale_mode(self, mode: str):
+        if self.model_config.model_id == "arcana2":
+            await self.send_command(f"set scalemode {mode}")
+        else:
+            await self.send_command(f"set scale {mode}")
+
+    async def set_audio_mode(self, mode: str):
+        await self.send_command(f"set audiomode {mode}")
+
     async def heartbeat(self) -> bool:
-        """
-        Send a simple heartbeat command to keep connection alive.
-        Returns True if successful, False if connection failed.
-        """
         try:
-            await self.send_command("get insel")
+            if self.model_config.input_count > 0:
+                await self.send_command("get insel")
+            else:
+                await self.send_command("get ver")
             return True
         except Exception as e:
             self.log.debug(f"Heartbeat failed: {e}")
