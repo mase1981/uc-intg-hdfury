@@ -30,8 +30,8 @@ class HDFuryRemote(Remote):
             ui_pages=ui_pages
         )
 
-    def _build_simple_commands(self) -> list[dict]:
-        """Build list of simple commands based on model capabilities for activity mapping."""
+    def _build_simple_commands(self) -> list[str]:
+        """Build list of simple command IDs for activity mapping."""
         commands = []
         model_config = self._device.model_config
         
@@ -39,123 +39,70 @@ class HDFuryRemote(Remote):
         if model_config.input_count > 0:
             for source in self._device.source_list:
                 cmd_id = f"set_source_{source.replace(' ', '_')}"
-                commands.append({
-                    "cmd_id": cmd_id,
-                    "name": {"en": f"Switch to {source}"}
-                })
+                commands.append(cmd_id)
         
         # EDID mode commands
         for mode in model_config.edid_modes:
-            commands.append({
-                "cmd_id": f"set_edidmode_{mode}",
-                "name": {"en": f"EDID Mode: {mode.title()}"}
-            })
+            commands.append(f"set_edidmode_{mode}")
         
         # EDID audio source commands
         for source in model_config.edid_audio_sources:
-            label = "5.1" if source == "5.1" else source.title()
             cmd_id = f"set_edidaudio_{source.replace('.', '')}"
-            commands.append({
-                "cmd_id": cmd_id,
-                "name": {"en": f"Audio Source: {label}"}
-            })
+            commands.append(cmd_id)
         
         # Scale mode commands
         if model_config.scale_modes:
             for mode in model_config.scale_modes:
-                display_name = mode.replace("_", " ").title()
-                commands.append({
-                    "cmd_id": f"set_scalemode_{mode}",
-                    "name": {"en": f"Scale Mode: {display_name}"}
-                })
+                commands.append(f"set_scalemode_{mode}")
         
         # Audio mode commands
         if model_config.audio_modes:
             for mode in model_config.audio_modes:
-                commands.append({
-                    "cmd_id": f"set_audiomode_{mode}",
-                    "name": {"en": f"Audio Mode: {mode.title()}"}
-                })
+                commands.append(f"set_audiomode_{mode}")
         
         # HDR custom commands
         if model_config.hdr_custom_support:
             commands.extend([
-                {
-                    "cmd_id": "set_hdrcustom_on",
-                    "name": {"en": "Custom HDR: ON"}
-                },
-                {
-                    "cmd_id": "set_hdrcustom_off",
-                    "name": {"en": "Custom HDR: OFF"}
-                }
+                "set_hdrcustom_on",
+                "set_hdrcustom_off"
             ])
         
         # HDR disable commands
         if model_config.hdr_disable_support:
             commands.extend([
-                {
-                    "cmd_id": "set_hdrdisable_on",
-                    "name": {"en": "Disable HDR: ON"}
-                },
-                {
-                    "cmd_id": "set_hdrdisable_off",
-                    "name": {"en": "Disable HDR: OFF"}
-                }
+                "set_hdrdisable_on",
+                "set_hdrdisable_off"
             ])
         
         # CEC engine commands
         if model_config.cec_support:
             commands.extend([
-                {
-                    "cmd_id": "set_cec_on",
-                    "name": {"en": "CEC Engine: ON"}
-                },
-                {
-                    "cmd_id": "set_cec_off",
-                    "name": {"en": "CEC Engine: OFF"}
-                }
+                "set_cec_on",
+                "set_cec_off"
             ])
         
         # eARC force mode commands
         for mode in model_config.earc_force_modes:
-            commands.append({
-                "cmd_id": f"set_earcforce_{mode}",
-                "name": {"en": f"eARC Force: {mode.title()}"}
-            })
+            commands.append(f"set_earcforce_{mode}")
         
         # OLED display commands
         if model_config.oled_support:
             commands.extend([
-                {
-                    "cmd_id": "set_oled_on",
-                    "name": {"en": "OLED Display: ON"}
-                },
-                {
-                    "cmd_id": "set_oled_off",
-                    "name": {"en": "OLED Display: OFF"}
-                }
+                "set_oled_on",
+                "set_oled_off"
             ])
         
         # Autoswitch commands
         if model_config.autoswitch_support:
             commands.extend([
-                {
-                    "cmd_id": "set_autosw_on",
-                    "name": {"en": "Autoswitch: ON"}
-                },
-                {
-                    "cmd_id": "set_autosw_off",
-                    "name": {"en": "Autoswitch: OFF"}
-                }
+                "set_autosw_on",
+                "set_autosw_off"
             ])
         
         # HDCP mode commands
         for mode in model_config.hdcp_modes:
             cmd_id = f"set_hdcp_{'14' if mode == '1.4' else mode}"
-            commands.append({
-                "cmd_id": cmd_id,
-                "name": {"en": f"HDCP Mode: {mode}"}
-            })
+            commands.append(cmd_id)
         
         return commands
 
