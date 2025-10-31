@@ -18,15 +18,93 @@ class HDFuryRemote(Remote):
         self._device = device
         
         ui_pages = self._build_ui_pages()
+        simple_commands = self._build_simple_commands()
         
         super().__init__(
             identifier=f"{device.device_id}-remote",
             name=f"{device.name} Controls",
             features=[],
             attributes={"state": States.ON},
+            simple_commands=simple_commands,
             cmd_handler=self._device.handle_remote_command,
             ui_pages=ui_pages
         )
+
+    def _build_simple_commands(self) -> list[str]:
+        """Build list of simple command IDs for activity mapping."""
+        commands = []
+        model_config = self._device.model_config
+        
+        # Source selection commands
+        if model_config.input_count > 0:
+            for source in self._device.source_list:
+                cmd_id = f"set_source_{source.replace(' ', '_')}"
+                commands.append(cmd_id)
+        
+        # EDID mode commands
+        for mode in model_config.edid_modes:
+            commands.append(f"set_edidmode_{mode}")
+        
+        # EDID audio source commands
+        for source in model_config.edid_audio_sources:
+            cmd_id = f"set_edidaudio_{source.replace('.', '')}"
+            commands.append(cmd_id)
+        
+        # Scale mode commands
+        if model_config.scale_modes:
+            for mode in model_config.scale_modes:
+                commands.append(f"set_scalemode_{mode}")
+        
+        # Audio mode commands
+        if model_config.audio_modes:
+            for mode in model_config.audio_modes:
+                commands.append(f"set_audiomode_{mode}")
+        
+        # HDR custom commands
+        if model_config.hdr_custom_support:
+            commands.extend([
+                "set_hdrcustom_on",
+                "set_hdrcustom_off"
+            ])
+        
+        # HDR disable commands
+        if model_config.hdr_disable_support:
+            commands.extend([
+                "set_hdrdisable_on",
+                "set_hdrdisable_off"
+            ])
+        
+        # CEC engine commands
+        if model_config.cec_support:
+            commands.extend([
+                "set_cec_on",
+                "set_cec_off"
+            ])
+        
+        # eARC force mode commands
+        for mode in model_config.earc_force_modes:
+            commands.append(f"set_earcforce_{mode}")
+        
+        # OLED display commands
+        if model_config.oled_support:
+            commands.extend([
+                "set_oled_on",
+                "set_oled_off"
+            ])
+        
+        # Autoswitch commands
+        if model_config.autoswitch_support:
+            commands.extend([
+                "set_autosw_on",
+                "set_autosw_off"
+            ])
+        
+        # HDCP mode commands
+        for mode in model_config.hdcp_modes:
+            cmd_id = f"set_hdcp_{'14' if mode == '1.4' else mode}"
+            commands.append(cmd_id)
+        
+        return commands
 
     def _build_ui_pages(self) -> list[UiPage]:
         pages = []
