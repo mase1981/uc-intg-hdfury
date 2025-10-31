@@ -1,11 +1,18 @@
+"""
+HDFury Integration for Unfolded Circle Remote Two/3.
+
+:copyright: (c) 2025 by Meir Miyara.
+:license: MPL-2.0, see LICENSE for more details.
+"""
 import asyncio
 import logging
 import ucapi
 from ucapi import media_player, DeviceStates, api_definitions
-from ucapi.remote import States as RemoteStates  # Import Remote states
+from ucapi.remote import States as RemoteStates
 from uc_intg_hdfury.device import HDFuryDevice, EVENTS
 from uc_intg_hdfury.config import Devices, HDFuryDeviceConfig
 from uc_intg_hdfury.hdfury_client import HDFuryClient
+from uc_intg_hdfury.models import MODEL_CONFIGS, get_model_config
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 log = logging.getLogger(__name__)
@@ -17,31 +24,63 @@ devices_config: Devices | None = None
 async def driver_setup_handler(request: ucapi.SetupDriver) -> ucapi.SetupAction:
     if isinstance(request, ucapi.DriverSetupRequest):
         return ucapi.RequestUserInput(
-            title={"en": "HDFury Device Address"},
+            title={"en": "Select HDFury Device Model"},
             settings=[
-                {"id": "host", "label": {"en": "IP Address"}, "field": {"text": {"value": ""}}},
-                {"id": "port", "label": {"en": "Port"}, "field": {"number": {"value": 2222}}}
+                {
+                    "id": "model",
+                    "label": {"en": "Device Model"},
+                    "field": {
+                        "dropdown": {
+                            "value": "vrroom",
+                            "items": [
+                                {"id": "vrroom", "label": {"en": "VRRooM"}},
+                                {"id": "vertex2", "label": {"en": "VERTEX2"}},
+                                {"id": "vertex", "label": {"en": "VERTEX"}},
+                                {"id": "diva", "label": {"en": "DIVA"}},
+                                {"id": "maestro", "label": {"en": "Maestro"}},
+                                {"id": "arcana2", "label": {"en": "ARCANA2"}},
+                                {"id": "dr8k", "label": {"en": "Dr.HDMI 8K"}}
+                            ]
+                        }
+                    }
+                }
             ]
         )
     if isinstance(request, ucapi.UserDataResponse):
         user_input = request.input_values
-        host, port = user_input.get("host"), int(user_input.get("port", 2222))
-        if not host: return ucapi.SetupError("IP address is required.")
+        model_id = user_input.get("model", "vrroom")
+        
+        if "host" not in user_input:
+            model_config = get_model_config(model_id)
+            return ucapi.RequestUserInput(
+                title={"en": "HDFury Device Address"},
+                settings=[
+                    {"id": "model", "label": {"en": "Model"}, "field": {"text": {"value": model_id}}},
+                    {"id": "host", "label": {"en": "IP Address"}, "field": {"text": {"value": ""}}},
+                    {"id": "port", "label": {"en": "Port"}, "field": {"number": {"value": model_config.default_port}}}
+                ]
+            )
+        
+        host = user_input.get("host")
+        port = int(user_input.get("port", 2222))
+        if not host:
+            return ucapi.SetupError("IP address is required.")
         
         identifier = f"hdfury-{host.replace('.', '-')}"
-        if identifier in configured_devices: return ucapi.SetupComplete()
+        if identifier in configured_devices:
+            return ucapi.SetupComplete()
 
+        model_config = get_model_config(model_id)
+        
         try:
-            temp_client = HDFuryClient(host, port, log)
+            temp_client = HDFuryClient(host, port, log, model_config)
             await temp_client.connect()
-            model_name = await temp_client.get_device_name()
             await temp_client.disconnect()
         except Exception as e:
-            return ucapi.SetupError(f"Could not connect to get device model: {e}")
+            return ucapi.SetupError(f"Could not connect to device: {e}")
 
-        device = HDFuryDevice(host, port, model_name)
+        device = HDFuryDevice(host, port, model_config)
         
-        # Add entities to available entities
         api.available_entities.add(device.media_player_entity)
         api.available_entities.add(device.remote_entity)
         device.events.on(EVENTS.UPDATE, on_device_update)
@@ -52,7 +91,7 @@ async def driver_setup_handler(request: ucapi.SetupDriver) -> ucapi.SetupAction:
                  return ucapi.SetupError("Could not get valid status from HDFury.")
             
             configured_devices[identifier] = device
-            new_config = HDFuryDeviceConfig(identifier, device.name, host, port)
+            new_config = HDFuryDeviceConfig(identifier, device.name, host, port, model_id)
             devices_config.add(new_config)
             return ucapi.SetupComplete()
         except Exception as e:
@@ -67,7 +106,6 @@ async def on_connect() -> None:
 @api.listens_to(api_definitions.Events.DISCONNECT)
 async def on_disconnect() -> None:
     log.info("Remote disconnected. Keeping devices running for reconnection.")
-    # Don't stop devices on remote disconnect - keep them running for reconnection
 
 @api.listens_to(api_definitions.Events.SUBSCRIBE_ENTITIES)
 async def on_subscribe_entities(entity_ids: list[str]):
@@ -82,14 +120,12 @@ async def on_subscribe_entities(entity_ids: list[str]):
 
 @api.listens_to(api_definitions.Events.UNSUBSCRIBE_ENTITIES)
 async def on_unsubscribe_entities(entity_ids: list[str]):
-    # Don't disconnect devices when unsubscribing - keep them alive for quick reconnection
     log.info(f"Entities unsubscribed: {entity_ids}")
 
 def on_device_update(device: HDFuryDevice):
     push_device_state(device)
 
 def push_device_state(device: HDFuryDevice):
-    # Update MediaPlayer entity
     if mp_entity := device.media_player_entity:
         if api.configured_entities.contains(mp_entity.id):
             mp_attributes = {
@@ -103,10 +139,8 @@ def push_device_state(device: HDFuryDevice):
             api.configured_entities.update_attributes(mp_entity.id, mp_attributes)
             log.info(f"Pushed state to entity {mp_entity.id}")
 
-    # Update Remote entity - CRITICAL: Only update state, no name attribute
     if remote_entity := device.remote_entity:
         if api.configured_entities.contains(remote_entity.id):
-            # Remote entities only need state updates - names are set during initialization
             remote_attributes = {
                 "state": RemoteStates.ON if device.state == media_player.States.ON else RemoteStates.OFF
             }
@@ -117,16 +151,15 @@ def add_device(device_config: HDFuryDeviceConfig):
     identifier = device_config.identifier
     if identifier in configured_devices: return
 
-    device = HDFuryDevice(device_config.host, device_config.port, "VRRoom")
+    model_config = get_model_config(device_config.model_id)
+    device = HDFuryDevice(device_config.host, device_config.port, model_config)
     
-    # Add both entities atomically
     api.available_entities.add(device.media_player_entity)
     api.available_entities.add(device.remote_entity)
     device.events.on(EVENTS.UPDATE, on_device_update)
     configured_devices[identifier] = device
 
 async def cleanup_on_shutdown():
-    """Cleanup function to properly stop all devices before shutdown"""
     log.info("Shutting down HDFury driver...")
     if configured_devices:
         await asyncio.gather(*[d.stop() for d in configured_devices.values()], return_exceptions=True)

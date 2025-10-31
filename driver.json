@@ -1,13 +1,13 @@
 {
     "driver_id": "uc-intg-hdfury",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "min_core_api": "0.3.1",
     "name": {
         "en": "HDFury Controls"
     },
     "icon": "uc:input-numeric",
     "description": {
-        "en": "Control HDFury HDMI matrix devices like the VRROOM."
+        "en": "Control HDFury HDMI devices including VRRooM, VERTEX, DIVA, Maestro, ARCANA2, and Dr.HDMI 8K."
     },
     "developer": {
         "name": "Meir Miyara"
@@ -26,7 +26,7 @@
                 "field": {
                     "label": {
                         "value": {
-                            "en": "This integration allows you to control HDFury devices on your network. You will be asked to provide the device's IP address and port on the next screen."
+                            "en": "This integration supports multiple HDFury device models. Please select your device model and provide its IP address."
                         }
                     }
                 }
