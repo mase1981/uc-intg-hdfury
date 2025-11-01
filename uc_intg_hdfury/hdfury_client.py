@@ -157,6 +157,9 @@ class HDFuryClient:
     async def set_audio_mode(self, mode: str):
         await self.send_command(f"set audiomode {mode}")
 
+    async def set_ledprofilevideo_mode(self, mode: str):
+        await self.send_command(f"set ledprofilevideo {mode}")
+
     async def heartbeat(self) -> bool:
         try:
             if self.model_config.input_count > 0:

@@ -59,6 +59,11 @@ class HDFuryRemote(Remote):
         if model_config.audio_modes:
             for mode in model_config.audio_modes:
                 commands.append(f"set_audiomode_{mode}")
+
+        # Led mode commands
+        if model_config.led_modes:
+            for mode in model_config.led_modes:
+                commands.append(f"set_ledprofilevideo_{mode}")
         
         # HDR custom commands
         if model_config.hdr_custom_support:
@@ -130,6 +135,9 @@ class HDFuryRemote(Remote):
         
         if model_config.oled_support or model_config.autoswitch_support or model_config.hdcp_modes:
             pages.append(self._create_system_page())
+
+        if model_config.led_modes:
+            pages.append(self.create_led_page())
         
         return pages
 
@@ -226,6 +234,30 @@ class HDFuryRemote(Remote):
             ))
 
         return UiPage(page_id="audio", name="Audio", items=items)
+
+    def _create_led_page(self) -> UiPage:
+        items = []
+        model_config = self._device.model_config
+
+        mode_text_map = {
+            "0": "Off",
+            "1": "Video",
+            "2": "Static",
+            "3": "Blink",
+            "4": "Rotate"
+        }
+        items.append(create_ui_text(text="Ambilight Mode", x=0, y=0, size=Size(width=4)))
+        for i, mode in enumerate(model_config.led_modes):
+            cmd_id = f"set_ledprofilevideo_{mode}"
+            display_text = mode_text_map.get(mode, mode.title())
+            items.append(create_ui_text(
+                text=display_text, 
+                x=i, 
+                y=1, 
+                cmd=EntityCommand(cmd_id, {"command": cmd_id})
+            ))
+
+        return UiPage(page_id="audio", name="Ambilight", items=items)
 
     def _create_hdr_page(self) -> UiPage:
         items = []

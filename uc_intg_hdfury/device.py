@@ -195,6 +195,10 @@ class HDFuryDevice:
             elif command.startswith("set_audiomode_"):
                 mode = command.replace("set_audiomode_", "")
                 await self.client.set_audio_mode(mode)
+
+            elif command.startswith("set_ledprofilevideo_"):
+                mode = command.replace("set_ledprofilevideo_", "")
+                await self.client.set_ledprofilevideo_mode(mode)
                 
             else:
                 log.warning(f"Unsupported command: {command}")

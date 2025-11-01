@@ -25,6 +25,7 @@ class ModelConfig:
     hdcp_modes: List[str]
     scale_modes: Optional[List[str]] = None
     audio_modes: Optional[List[str]] = None
+    led_modes: Optional[List[str]] = None
 
 VRROOM_CONFIG = ModelConfig(
     model_id="vrroom",
@@ -95,6 +96,7 @@ DIVA_CONFIG = ModelConfig(
     autoswitch_support=True,
     hdcp_modes=["auto", "1.4"],
     scale_modes=["auto", "custom", "none"],
+    led_modes=["0","1","2","3","4"],
 )
 
 MAESTRO_CONFIG = ModelConfig(
