@@ -141,7 +141,11 @@ class HDFuryDevice:
                 log.error(f"HDFuryDevice: Command processor error for {self.host}: {e}")
 
     async def _execute_command_internal(self, command: str):
-        log.debug(f"HDFuryDevice: Executing command '{command}'")
+        log.info(f"HDFuryDevice: Executing command '{command}'")
+        
+        if not self.client.is_connected():
+            log.error(f"HDFuryDevice: Cannot execute '{command}' - client not connected")
+            return api_definitions.StatusCodes.SERVER_ERROR
         
         try:
             # Source switching
@@ -247,19 +251,16 @@ class HDFuryDevice:
             elif command == "audio_delay_reset":
                 await self.client.audio_delay_reset()
             
-            # LED mode (DIVA)
-            elif command.startswith("set_ledmode_"):
-                mode = command.replace("set_ledmode_", "")
-                await self.client.set_led_mode(mode)
+            elif command.startswith("set_ledprofilevideo_"):
+                mode = command.replace("set_ledprofilevideo_", "")
+                await self.client.set_ledprofilevideo_mode(mode)
             
-            # LED brightness (DIVA)
-            elif command == "led_brightness_up":
-                await self.client.led_brightness_adjust(10)
-            elif command == "led_brightness_down":
-                await self.client.led_brightness_adjust(-10)
             elif command.startswith("set_led_brightness_"):
+                # Map percentage strings to gain values (0-31)
                 value = command.replace("set_led_brightness_", "")
-                await self.client.set_led_brightness(int(value))
+                gain_map = {"25": 8, "50": 16, "75": 24, "100": 31}
+                gain_value = gain_map.get(value, 16)  # Default to 50% if unknown
+                await self.client.set_led_brightness(gain_value)
             
             # Device info
             elif command == "get_firmware_version":
