@@ -78,14 +78,15 @@ class HDFuryClient:
                 
                 timeout = self._get_command_timeout(command)
                 
-                self.log.debug(f"HDFuryClient: Sending command '{command}' (timeout: {timeout}s)")
+                # INFO level for visibility in logs
+                self.log.info(f"HDFuryClient: Sending command '{command}' (timeout: {timeout}s)")
                 self._writer.write(f"{command}\r\n".encode('ascii'))
                 await self._writer.drain()
 
                 response = await asyncio.wait_for(self._reader.readline(), timeout=timeout)
                 decoded = response.decode('ascii').replace('>', '').strip()
                 self._last_activity = asyncio.get_event_loop().time()
-                self.log.debug(f"HDFuryClient: Received response for '{command}': '{decoded}'")
+                self.log.info(f"HDFuryClient: Received response for '{command}': '{decoded}'")
                 return decoded
 
             except asyncio.TimeoutError:
@@ -142,7 +143,11 @@ class HDFuryClient:
 
     async def set_edid_audio(self, source: str):
         """Set EDID audio source."""
-        await self.send_command(f"set edid audio {source}")
+        # VERTEX uses "set edidaudio" (one word), others use "set edid audio" (two words)
+        if self.model_config.model_id == "vertex":
+            await self.send_command(f"set edidaudio {source}")
+        else:
+            await self.send_command(f"set edid audio {source}")
 
     async def load_edid_slot(self, slot: str):
         """Load EDID from slot."""
@@ -246,19 +251,25 @@ class HDFuryClient:
     # ===== LED CONTROL (DIVA) =====
     async def set_led_mode(self, mode: str):
         """Set LED/Ambilight mode (DIVA only)."""
-        await self.send_command(f"set ledstyle {mode}")
+        await self.send_command(f"set ledprofilevideo {mode}")
 
     async def led_brightness_adjust(self, change: int):
         """Adjust LED brightness by relative amount (DIVA only)."""
         if change > 0:
-            await self.send_command(f"set ledbright +{abs(change)}")
+            await self.send_command(f"set ledredgain +{abs(change)}")
+            await self.send_command(f"set ledgreengain +{abs(change)}")
+            await self.send_command(f"set ledbluegain +{abs(change)}")
         else:
-            await self.send_command(f"set ledbright -{abs(change)}")
+            await self.send_command(f"set ledredgain -{abs(change)}")
+            await self.send_command(f"set ledgreengain -{abs(change)}")
+            await self.send_command(f"set ledbluegain -{abs(change)}")
 
     async def set_led_brightness(self, value: int):
-        """Set LED brightness to absolute value 0-100 (DIVA only)."""
-        value = max(0, min(100, value))
-        await self.send_command(f"set ledbright {value}")
+        """Set LED brightness to absolute value 0-31 (DIVA only)."""
+        value = max(0, min(31, value))
+        await self.send_command(f"set ledredgain {value}")
+        await self.send_command(f"set ledgreengain {value}")
+        await self.send_command(f"set ledbluegain {value}")
 
     # ===== DEVICE INFO =====
     async def get_firmware_version(self) -> str:
