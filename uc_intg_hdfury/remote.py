@@ -114,6 +114,10 @@ class HDFuryRemote(Remote):
                 "set_cec_off"
             ])
         
+        if model_config.arc_force_modes:
+            for mode in model_config.arc_force_modes:
+                commands.append(f"set_arcforce_{mode}")
+        
         for mode in model_config.earc_force_modes:
             commands.append(f"set_earcforce_{mode}")
         
@@ -170,7 +174,7 @@ class HDFuryRemote(Remote):
         if model_config.hdr_custom_support or model_config.hdr_disable_support:
             pages.append(self._create_hdr_page())
         
-        if model_config.cec_support or model_config.earc_force_modes:
+        if model_config.cec_support or model_config.arc_force_modes or model_config.earc_force_modes:
             pages.append(self._create_cec_earc_page())
         
         if model_config.oled_support or model_config.autoswitch_support or model_config.hdcp_modes:
@@ -477,6 +481,19 @@ class HDFuryRemote(Remote):
                 y=y_pos, 
                 cmd=EntityCommand("set_cec_off", {"command": "set_cec_off"})
             ))
+            y_pos += 2
+        
+        if model_config.arc_force_modes:
+            items.append(create_ui_text(text="ARC Force", x=0, y=y_pos, size=Size(width=4)))
+            y_pos += 1
+            for i, mode in enumerate(model_config.arc_force_modes[:4]):
+                cmd_id = f"set_arcforce_{mode}"
+                items.append(create_ui_text(
+                    text=mode.title(), 
+                    x=i, 
+                    y=y_pos, 
+                    cmd=EntityCommand(cmd_id, {"command": cmd_id})
+                ))
             y_pos += 2
         
         if model_config.earc_force_modes:
