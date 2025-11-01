@@ -26,14 +26,14 @@ class ModelConfig:
     scale_modes: Optional[List[str]] = None
     audio_modes: Optional[List[str]] = None
     led_modes: Optional[Dict[str, str]] = None
-    # NEW: Extended capabilities
     color_space_modes: Optional[List[str]] = None
     deep_color_modes: Optional[List[str]] = None
     output_resolutions: Optional[List[str]] = None
-    matrix_outputs: Optional[int] = None  # Number of outputs for matrix switchers
+    matrix_outputs: Optional[int] = None
     audio_delay_support: bool = False
     led_brightness_support: bool = False
-    edid_slots: Optional[int] = None  # Number of custom EDID slots
+    edid_slots: Optional[int] = None
+    arc_force_modes: Optional[List[str]] = None
 
 VRROOM_CONFIG = ModelConfig(
     model_id="vrroom",
@@ -72,10 +72,11 @@ VERTEX2_CONFIG = ModelConfig(
     autoswitch_support=True,
     hdcp_modes=["auto", "1.4"],
     scale_modes=["auto", "custom", "none"],
-    matrix_outputs=2,  # TX0 and TX1
+    matrix_outputs=2,
     color_space_modes=["auto", "rgb", "ycbcr444", "ycbcr422"],
     deep_color_modes=["auto", "8bit", "10bit", "12bit"],
     edid_slots=4,
+    arc_force_modes=["auto", "arc", "hdmi"],
 )
 
 VERTEX_CONFIG = ModelConfig(
@@ -94,7 +95,7 @@ VERTEX_CONFIG = ModelConfig(
     autoswitch_support=True,
     hdcp_modes=["1.4", "2.2"],
     scale_modes=["auto", "custom", "none"],
-    matrix_outputs=2,  # Top and Bottom outputs
+    matrix_outputs=2,
     color_space_modes=["auto", "rgb", "ycbcr444", "ycbcr422"],
     deep_color_modes=["auto", "8bit", "10bit", "12bit"],
 )
@@ -126,6 +127,7 @@ DIVA_CONFIG = ModelConfig(
     led_brightness_support=True,
     color_space_modes=["auto", "rgb", "ycbcr444", "ycbcr422"],
     deep_color_modes=["auto", "8bit", "10bit", "12bit"],
+    arc_force_modes=["auto", "arc", "hdmi"],
 )
 
 MAESTRO_CONFIG = ModelConfig(
@@ -144,9 +146,9 @@ MAESTRO_CONFIG = ModelConfig(
     autoswitch_support=True,
     hdcp_modes=["auto", "1.4"],
     scale_modes=["auto", "custom", "none"],
-    audio_delay_support=True,
     color_space_modes=["auto", "rgb", "ycbcr444", "ycbcr422"],
     deep_color_modes=["auto", "8bit", "10bit", "12bit"],
+    arc_force_modes=["auto", "arc", "hdmi"],
 )
 
 ARCANA2_CONFIG = ModelConfig(
@@ -184,7 +186,7 @@ DR8K_CONFIG = ModelConfig(
     oled_support=True,
     autoswitch_support=False,
     hdcp_modes=[],
-    edid_slots=8,  # Dr.HDMI typically has many EDID slots
+    edid_slots=8,
     output_resolutions=["auto", "4k60", "4k30", "1080p60", "1080p30", "720p60"],
 )
 

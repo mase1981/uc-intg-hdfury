@@ -148,26 +148,22 @@ class HDFuryDevice:
             return api_definitions.StatusCodes.SERVER_ERROR
         
         try:
-            # Source switching
             if command.startswith("set_source_"):
                 source = command.replace("set_source_", "").replace("_", " ")
                 await self.client.set_source(source)
                 self.current_source = source
             
-            # Matrix routing (VERTEX/VERTEX2)
             elif command.startswith("route_tx"):
-                parts = command.split("_", 2)  # route_tx0_HDMI_0 -> ['route', 'tx0', 'HDMI 0']
+                parts = command.split("_", 2)
                 if len(parts) >= 3:
-                    output = parts[1]  # tx0 or tx1
-                    source = parts[2].replace("_", " ")  # HDMI 0
+                    output = parts[1]
+                    source = parts[2].replace("_", " ")
                     await self.client.route_matrix(output, source)
             
-            # EDID mode
             elif command.startswith("set_edidmode_"):
                 mode = command.replace("set_edidmode_", "")
                 await self.client.set_edid_mode(mode)
             
-            # EDID audio source
             elif command.startswith("set_edidaudio_"):
                 source = command.replace("set_edidaudio_", "")
                 if source == "51":
@@ -175,7 +171,6 @@ class HDFuryDevice:
                 else:
                     await self.client.set_edid_audio(source)
             
-            # EDID slot management
             elif command.startswith("load_edid_slot_"):
                 slot = command.replace("load_edid_slot_", "")
                 await self.client.load_edid_slot(slot)
@@ -183,86 +178,68 @@ class HDFuryDevice:
                 slot = command.replace("save_edid_slot_", "")
                 await self.client.save_edid_slot(slot)
             
-            # Color space
             elif command.startswith("set_colorspace_"):
                 mode = command.replace("set_colorspace_", "")
                 await self.client.set_color_space(mode)
             
-            # Deep color
             elif command.startswith("set_deepcolor_"):
                 mode = command.replace("set_deepcolor_", "")
                 await self.client.set_deep_color(mode)
             
-            # Output resolution
             elif command.startswith("set_resolution_"):
                 res = command.replace("set_resolution_", "")
                 await self.client.set_output_resolution(res)
             
-            # HDR custom
             elif command.startswith("set_hdrcustom_"):
                 state = (command == "set_hdrcustom_on")
                 await self.client.set_hdr_custom(state)
             
-            # HDR disable
             elif command.startswith("set_hdrdisable_"):
                 state = (command == "set_hdrdisable_on")
                 await self.client.set_hdr_disable(state)
             
-            # CEC
             elif command.startswith("set_cec_"):
                 state = (command == "set_cec_on")
                 await self.client.set_cec(state)
             
-            # eARC force
+            elif command.startswith("set_arcforce_"):
+                mode = command.replace("set_arcforce_", "")
+                await self.client.set_arc_force(mode)
+            
             elif command.startswith("set_earcforce_"):
                 mode = command.replace("set_earcforce_", "")
                 await self.client.set_earc_force(mode)
             
-            # OLED display
             elif command.startswith("set_oled_"):
                 state = (command == "set_oled_on")
                 await self.client.set_oled(state)
             
-            # Autoswitch
             elif command.startswith("set_autosw_"):
                 state = (command == "set_autosw_on")
                 await self.client.set_autoswitch(state)
             
-            # HDCP mode
             elif command.startswith("set_hdcp_"):
                 mode = command.replace("set_hdcp_", "")
                 await self.client.set_hdcp_mode(mode)
             
-            # Scale mode
             elif command.startswith("set_scalemode_"):
                 mode = command.replace("set_scalemode_", "")
                 await self.client.set_scale_mode(mode)
             
-            # Audio mode
             elif command.startswith("set_audiomode_"):
                 mode = command.replace("set_audiomode_", "")
                 await self.client.set_audio_mode(mode)
-            
-            # Audio delay (Maestro)
-            elif command == "audio_delay_plus":
-                await self.client.audio_delay_adjust(1)
-            elif command == "audio_delay_minus":
-                await self.client.audio_delay_adjust(-1)
-            elif command == "audio_delay_reset":
-                await self.client.audio_delay_reset()
             
             elif command.startswith("set_ledprofilevideo_"):
                 mode = command.replace("set_ledprofilevideo_", "")
                 await self.client.set_ledprofilevideo_mode(mode)
             
             elif command.startswith("set_led_brightness_"):
-                # Map percentage strings to gain values (0-31)
                 value = command.replace("set_led_brightness_", "")
                 gain_map = {"25": 8, "50": 16, "75": 24, "100": 31}
-                gain_value = gain_map.get(value, 16)  # Default to 50% if unknown
+                gain_value = gain_map.get(value, 16)
                 await self.client.set_led_brightness(gain_value)
             
-            # Device info
             elif command == "get_firmware_version":
                 version = await self.client.get_firmware_version()
                 log.info(f"Firmware version: {version}")
