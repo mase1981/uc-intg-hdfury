@@ -25,6 +25,15 @@ class ModelConfig:
     hdcp_modes: List[str]
     scale_modes: Optional[List[str]] = None
     audio_modes: Optional[List[str]] = None
+    led_modes: Optional[Dict[str, str]] = None
+    # NEW: Extended capabilities
+    color_space_modes: Optional[List[str]] = None
+    deep_color_modes: Optional[List[str]] = None
+    output_resolutions: Optional[List[str]] = None
+    matrix_outputs: Optional[int] = None  # Number of outputs for matrix switchers
+    audio_delay_support: bool = False
+    led_brightness_support: bool = False
+    edid_slots: Optional[int] = None  # Number of custom EDID slots
 
 VRROOM_CONFIG = ModelConfig(
     model_id="vrroom",
@@ -41,6 +50,10 @@ VRROOM_CONFIG = ModelConfig(
     oled_support=True,
     autoswitch_support=True,
     hdcp_modes=["auto", "1.4"],
+    color_space_modes=["auto", "rgb", "ycbcr444", "ycbcr422", "ycbcr420"],
+    deep_color_modes=["auto", "8bit", "10bit", "12bit"],
+    output_resolutions=["auto", "4k60", "4k30", "1080p60", "1080p30"],
+    edid_slots=4,
 )
 
 VERTEX2_CONFIG = ModelConfig(
@@ -59,6 +72,10 @@ VERTEX2_CONFIG = ModelConfig(
     autoswitch_support=True,
     hdcp_modes=["auto", "1.4"],
     scale_modes=["auto", "custom", "none"],
+    matrix_outputs=2,  # TX0 and TX1
+    color_space_modes=["auto", "rgb", "ycbcr444", "ycbcr422"],
+    deep_color_modes=["auto", "8bit", "10bit", "12bit"],
+    edid_slots=4,
 )
 
 VERTEX_CONFIG = ModelConfig(
@@ -77,6 +94,9 @@ VERTEX_CONFIG = ModelConfig(
     autoswitch_support=True,
     hdcp_modes=["1.4", "2.2"],
     scale_modes=["auto", "custom", "none"],
+    matrix_outputs=2,  # Top and Bottom outputs
+    color_space_modes=["auto", "rgb", "ycbcr444", "ycbcr422"],
+    deep_color_modes=["auto", "8bit", "10bit", "12bit"],
 )
 
 DIVA_CONFIG = ModelConfig(
@@ -95,6 +115,17 @@ DIVA_CONFIG = ModelConfig(
     autoswitch_support=True,
     hdcp_modes=["auto", "1.4"],
     scale_modes=["auto", "custom", "none"],
+    led_modes={
+        "0": "Off",
+        "1": "Follow",
+        "2": "Static",
+        "3": "Blinking",
+        "4": "Pulsating",
+        "5": "Rotating"
+    },
+    led_brightness_support=True,
+    color_space_modes=["auto", "rgb", "ycbcr444", "ycbcr422"],
+    deep_color_modes=["auto", "8bit", "10bit", "12bit"],
 )
 
 MAESTRO_CONFIG = ModelConfig(
@@ -113,6 +144,9 @@ MAESTRO_CONFIG = ModelConfig(
     autoswitch_support=True,
     hdcp_modes=["auto", "1.4"],
     scale_modes=["auto", "custom", "none"],
+    audio_delay_support=True,
+    color_space_modes=["auto", "rgb", "ycbcr444", "ycbcr422"],
+    deep_color_modes=["auto", "8bit", "10bit", "12bit"],
 )
 
 ARCANA2_CONFIG = ModelConfig(
@@ -132,6 +166,7 @@ ARCANA2_CONFIG = ModelConfig(
     hdcp_modes=[],
     scale_modes=["none", "downtx1", "frltmds", "audioonly", "4k60_444_8_lldv", "4k60_444_8_hdr", "4k60_444_8_sdr"],
     audio_modes=["display", "earc", "both"],
+    edid_slots=2,
 )
 
 DR8K_CONFIG = ModelConfig(
@@ -149,6 +184,8 @@ DR8K_CONFIG = ModelConfig(
     oled_support=True,
     autoswitch_support=False,
     hdcp_modes=[],
+    edid_slots=8,  # Dr.HDMI typically has many EDID slots
+    output_resolutions=["auto", "4k60", "4k30", "1080p60", "1080p30", "720p60"],
 )
 
 MODEL_CONFIGS: Dict[str, ModelConfig] = {
