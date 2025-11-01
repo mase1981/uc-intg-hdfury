@@ -68,3 +68,4 @@ venv.bak/
 # Local Files
 config.json
 config/
+/.vs
