@@ -251,21 +251,15 @@ class HDFuryDevice:
             elif command == "audio_delay_reset":
                 await self.client.audio_delay_reset()
             
-            # LED mode (DIVA)
-            elif command.startswith("set_ledmode_"):
-                mode = command.replace("set_ledmode_", "")
-                await self.client.set_led_mode(mode)
+            elif command.startswith("set_ledprofilevideo_"):
+                mode = command.replace("set_ledprofilevideo_", "")
+                await self.client.set_ledprofilevideo_mode(mode)
             
-            # LED brightness (DIVA)
-            elif command == "led_brightness_up":
-                await self.client.led_brightness_adjust(3)  # Adjust by 3 gain levels
-            elif command == "led_brightness_down":
-                await self.client.led_brightness_adjust(-3)  # Adjust by -3 gain levels
             elif command.startswith("set_led_brightness_"):
-                # FIXED: Map percentages to gain values (0-31) for DIVA
+                # Map percentage strings to gain values (0-31)
                 value = command.replace("set_led_brightness_", "")
                 gain_map = {"25": 8, "50": 16, "75": 24, "100": 31}
-                gain_value = gain_map.get(value, 16)
+                gain_value = gain_map.get(value, 16)  # Default to 50% if unknown
                 await self.client.set_led_brightness(gain_value)
             
             # Device info

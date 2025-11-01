@@ -114,6 +114,8 @@ class HDFuryClient:
                 raise
 
     # ===== SOURCE SWITCHING =====
+    # VRRooM: "set inseltx0 x" where x=[0-3] (vrroom-rs232-ip-1315.txt line 56-59)
+    # VERTEX: "set input x" where x=[top/bot] (vertex-rs232-v1.30.txt line 43)
     async def set_source(self, source: str):
         """Set input source."""
         formatted_source = format_source_for_command(source, self.model_config)
@@ -137,13 +139,15 @@ class HDFuryClient:
             await self.send_command(f"set inseltx{output_num} {formatted_source}")
 
     # ===== EDID MANAGEMENT =====
+    # VRRooM/VERTEX2/DIVA: "set edidmode x" (line 98-100 in vrroom doc)
     async def set_edid_mode(self, mode: str):
         """Set EDID mode."""
         await self.send_command(f"set edidmode {mode}")
 
+    # VERTEX uses "set edidaudio" (ONE WORD) - vertex-rs232-v1.30.txt line 94
+    # All others use "set edid audio" (TWO WORDS)
     async def set_edid_audio(self, source: str):
         """Set EDID audio source."""
-        # VERTEX uses "set edidaudio" (one word), others use "set edid audio" (two words)
         if self.model_config.model_id == "vertex":
             await self.send_command(f"set edidaudio {source}")
         else:
@@ -192,10 +196,12 @@ class HDFuryClient:
         await self.send_command(f"set res {res_map.get(resolution, resolution)}")
 
     # ===== HDR CONTROL =====
+    # VRRooM: "set hdrcustom on/off" (vrroom-rs232-ip-1315.txt line 289-293)
     async def set_hdr_custom(self, state: bool):
         """Set custom HDR mode."""
         await self.send_command(f"set hdrcustom {'on' if state else 'off'}")
 
+    # VRRooM: "set hdrdisable on/off" (vrroom-rs232-ip-1315.txt line 315-318)
     async def set_hdr_disable(self, state: bool):
         """Disable HDR metadata."""
         await self.send_command(f"set hdrdisable {'on' if state else 'off'}")
@@ -248,24 +254,20 @@ class HDFuryClient:
         """Reset audio delay to 0 (Maestro)."""
         await self.send_command("set audiodelay 0")
 
-    # ===== LED CONTROL (DIVA) =====
-    async def set_led_mode(self, mode: str):
-        """Set LED/Ambilight mode (DIVA only)."""
+    async def set_ledprofilevideo_mode(self, mode: str):
+        """Set LED/Ambilight mode (DIVA only).
+        
+        Command verified from DIVA_rs232-ip-04-JUN-2020.txt line 439:
+        #diva set ledprofilevideo x where x is [0-5]
+        """
         await self.send_command(f"set ledprofilevideo {mode}")
 
-    async def led_brightness_adjust(self, change: int):
-        """Adjust LED brightness by relative amount (DIVA only)."""
-        if change > 0:
-            await self.send_command(f"set ledredgain +{abs(change)}")
-            await self.send_command(f"set ledgreengain +{abs(change)}")
-            await self.send_command(f"set ledbluegain +{abs(change)}")
-        else:
-            await self.send_command(f"set ledredgain -{abs(change)}")
-            await self.send_command(f"set ledgreengain -{abs(change)}")
-            await self.send_command(f"set ledbluegain -{abs(change)}")
-
     async def set_led_brightness(self, value: int):
-        """Set LED brightness to absolute value 0-31 (DIVA only)."""
+        """Set LED brightness to absolute value 0-31 (DIVA only).
+        
+        Commands verified from DIVA_rs232-ip-04-JUN-2020.txt lines 501-514.
+        Sets global RGB gain values which control overall brightness.
+        """
         value = max(0, min(31, value))
         await self.send_command(f"set ledredgain {value}")
         await self.send_command(f"set ledgreengain {value}")
