@@ -279,7 +279,7 @@ class HDFuryRemote(Remote):
         return UiPage(page_id="edid", name="EDID", grid=Size(width=5, height=6), items=items)
 
     def _create_video_page(self) -> UiPage:
-        """Create video settings page (color space, deep color, resolution)."""
+        """Create video settings page with proper layout."""
         items = []
         y_pos = 0
         model_config = self._device.model_config
@@ -297,7 +297,7 @@ class HDFuryRemote(Remote):
                     y=y_pos, 
                     cmd=EntityCommand(cmd_id, {"command": cmd_id})
                 ))
-            y_pos += 2
+            y_pos += 1  # Changed from += 2 to += 1
 
         # Deep color section
         if model_config.deep_color_modes:
@@ -311,19 +311,19 @@ class HDFuryRemote(Remote):
                     y=y_pos, 
                     cmd=EntityCommand(cmd_id, {"command": cmd_id})
                 ))
-            y_pos += 2
+            y_pos += 1  # Changed from += 2 to += 1
 
-        # Output resolution section
-        if model_config.output_resolutions:
+        # Output resolution section - FIX: Check if we have room
+        if model_config.output_resolutions and y_pos < 5:  # Need at least 2 rows
             items.append(create_ui_text(text="Resolution", x=0, y=y_pos, size=Size(width=4)))
             y_pos += 1
             col = 0
-            for res in model_config.output_resolutions[:8]:
-                if y_pos >= 6:
+            for res in model_config.output_resolutions:
+                if y_pos >= 6:  # Grid height limit
                     break
                 cmd_id = f"set_resolution_{res}"
                 items.append(create_ui_text(
-                    text=res.upper(), 
+                    text=res.upper()[:6], 
                     x=col, 
                     y=y_pos, 
                     cmd=EntityCommand(cmd_id, {"command": cmd_id})
@@ -345,6 +345,8 @@ class HDFuryRemote(Remote):
         
         for i, mode in enumerate(model_config.scale_modes[:5]):
             display_name = mode.replace("_", " ").title()
+            if len(display_name) > 8:
+                display_name = display_name[:8]
             cmd_id = f"set_scalemode_{mode}"
             items.append(create_ui_text(
                 text=display_name, 
@@ -357,6 +359,8 @@ class HDFuryRemote(Remote):
         if len(model_config.scale_modes) > 5:
             for i, mode in enumerate(model_config.scale_modes[5:10]):
                 display_name = mode.replace("_", " ").title()
+                if len(display_name) > 8:
+                    display_name = display_name[:8]
                 cmd_id = f"set_scalemode_{mode}"
                 items.append(create_ui_text(
                     text=display_name, 
@@ -450,15 +454,16 @@ class HDFuryRemote(Remote):
             ))
             
             row += 1
-            presets = [("25%", "25"), ("50%", "50"), ("75%", "75"), ("100%", "100")]
-            for i, (label, value) in enumerate(presets):
-                cmd_id = f"set_led_brightness_{value}"
-                items.append(create_ui_text(
-                    text=label, 
-                    x=i, 
-                    y=row, 
-                    cmd=EntityCommand(cmd_id, {"command": cmd_id})
-                ))
+            if row < 6:  # Make sure we have room for presets
+                presets = [("25%", "25"), ("50%", "50"), ("75%", "75"), ("100%", "100")]
+                for i, (label, value) in enumerate(presets):
+                    cmd_id = f"set_led_brightness_{value}"
+                    items.append(create_ui_text(
+                        text=label, 
+                        x=i, 
+                        y=row, 
+                        cmd=EntityCommand(cmd_id, {"command": cmd_id})
+                    ))
 
         return UiPage(page_id="led", name="LED/Ambilight", items=items)
 
