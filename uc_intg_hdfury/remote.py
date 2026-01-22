@@ -224,10 +224,9 @@ class HDFuryRemote(Remote):
         
         if model_config.cec_support or model_config.arc_force_modes or model_config.earc_force_modes:
             pages.append(self._create_cec_earc_page())
-        
-        if model_config.oled_support or model_config.autoswitch_support or model_config.hdcp_modes:
-            pages.append(self._create_system_page())
-        
+
+        pages.append(self._create_system_page())
+
         return pages
 
     def _create_sources_page(self) -> UiPage:
