@@ -1,19 +1,33 @@
-# HDFury Integration for Unfolded Circle Remote
+# HDFury Integration for Unfolded Circle Remote 2/3
 
-![hdfury](https://img.shields.io/badge/hdfury-multimodel-red)
+Control your HDFury HDMI processing devices directly from your Unfolded Circle Remote 2 or Remote 3 with comprehensive device control, **model-specific features**, **dynamic UI generation**, and **advanced EDID/HDR management**.
+
+![HDFury](https://img.shields.io/badge/HDFury-Multi--Model-red)
+[![GitHub Release](https://img.shields.io/github/v/release/mase1981/uc-intg-hdfury?style=flat-square)](https://github.com/mase1981/uc-intg-hdfury/releases)
+![License](https://img.shields.io/badge/license-MPL--2.0-blue?style=flat-square)
+[![GitHub issues](https://img.shields.io/github/issues/mase1981/uc-intg-hdfury?style=flat-square)](https://github.com/mase1981/uc-intg-hdfury/issues)
+[![Community Forum](https://img.shields.io/badge/community-forum-blue?style=flat-square)](https://community.unfoldedcircle.com/)
 [![Discord](https://badgen.net/discord/online-members/zGVYf58)](https://discord.gg/zGVYf58)
-![GitHub Release](https://img.shields.io/github/v/release/mase1981/uc-intg-hdfury)
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/mase1981/uc-intg-hdfury/total)
-![License](https://img.shields.io/badge/license-MPL--2.0-blue)
-[![Buy Me A Coffee](https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg)](https://buymeacoffee.com/meirmiyara)
-[![PayPal](https://img.shields.io/badge/PayPal-donate-blue.svg)](https://paypal.me/mmiyara)
-[![Github Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-30363D?&logo=GitHub-Sponsors&logoColor=EA4AAA)](https://github.com/sponsors/mase1981/button)
+![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/mase1981/uc-intg-hdfury/total?style=flat-square)
+[![Buy Me A Coffee](https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg?style=flat-square)](https://buymeacoffee.com/meirmiyara)
+[![PayPal](https://img.shields.io/badge/PayPal-donate-blue.svg?style=flat-square)](https://paypal.me/mmiyara)
+[![Github Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-30363D?&logo=GitHub-Sponsors&logoColor=EA4AAA&style=flat-square)](https://github.com/sponsors/mase1981)
 
 
-> **Control multiple HDFury HDMI devices with the Unfolded Circle Remote 2/3**
+## Features
 
-Full integration for HDFury devices providing dual-entity control with media player and advanced remote functionality. Supports 7 different HDFury models with model-specific features and dynamic UI generation.
+This integration provides comprehensive control of HDFury HDMI processing devices through native telnet/IP protocol, delivering seamless integration with your Unfolded Circle Remote for complete HDMI management and video processing control.
 
+---
+## 💰 Support Development
+
+If you find this integration useful, consider supporting development:
+
+[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub-pink?style=for-the-badge&logo=github)](https://github.com/sponsors/mase1981)
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://www.buymeacoffee.com/meirmiyara)
+[![PayPal](https://img.shields.io/badge/PayPal-00457C?style=for-the-badge&logo=paypal&logoColor=white)](https://paypal.me/mmiyara)
+
+Your support helps maintain this integration. Thank you! ❤️
 ---
 
 ## 📺 Supported Devices
@@ -22,458 +36,299 @@ This integration supports the following HDFury models with automatic feature det
 
 | Model | Status | Default Port | Inputs | Key Features |
 |-------|--------|--------------|--------|--------------|
-| **VRRooM 8K** | ✅ Fully Tested | 2222 | 4 HDMI | EDID, HDR, CEC, eARC |
-| **VERTEX2** | ✅ Supported | 2220 | 4 HDMI | EDID, HDR, CEC, Scale modes |
-| **VERTEX** | ✅ Supported | 2220 | 2 (Top/Bottom) | EDID, HDR, CEC, Scale modes |
-| **DIVA** | ✅ Supported | 2210 | 4 HDMI | EDID, HDR, CEC, LED controls |
-| **Maestro** | ✅ Supported | 2200 | 4 HDMI | EDID, HDR, CEC, eARC |
-| **ARCANA2** | ✅ Supported | 2222 | Passthrough | Audio modes, Scale modes |
-| **Dr.HDMI 8K** | ✅ Supported | 2201 | Passthrough | EDID management |
+| **VRRooM 8K** | ✅ Fully Tested | 2222 | 4 HDMI | EDID, HDR, CEC, eARC, Analog Audio |
+| **VERTEX2** | ✅ Supported | 2220 | 4 HDMI | EDID, HDR, CEC, Scale, Matrix (2 outputs) |
+| **VERTEX** | ✅ Supported | 2220 | 2 (Top/Bottom) | EDID, HDR, CEC, Scale, Matrix (2 outputs) |
+| **DIVA** | ✅ Supported | 2210 | 4 HDMI | EDID, HDR, CEC, LED controls, Analog Audio |
+| **Maestro** | ✅ Supported | 2200 | 4 HDMI | EDID, HDR, CEC, eARC, Analog Audio |
+| **ARCANA2** | ✅ Supported | 2222 | Passthrough | Audio modes, Scale modes, Advanced HDR |
+| **Dr.HDMI 8K** | ✅ Supported | 2201 | Passthrough | EDID management, Resolution control |
 
 **Each model automatically configures with appropriate features and UI pages based on its capabilities.**
 
 ---
 
-## ✨ Features
+### 🎛️ **HDMI Input Control**
 
-### Universal Features
-- ✅ **Model Selection** - Choose your specific HDFury device during setup
-- ✅ **Auto-Configuration** - Default ports and features set automatically
-- ✅ **Dynamic UI** - Remote pages adapt to device capabilities
-- ✅ **Dual Entity System** - Media Player + Remote Control entities
+#### **Input Switching**
+- **HDMI Inputs** - Select from available HDMI inputs (model-dependent)
+- **Matrix Routing** - Route inputs to multiple outputs (VERTEX2, VERTEX)
+- **Source Selection** - Visual source selection in media player entity
+- **Activity Integration** - Seamless input switching in activities
 
-### Media Player Entity
-- ✅ **Input Switching** - HDMI input selection (model-dependent)
-- ✅ **State Monitoring** - Real-time device status
-- ✅ **Activity Integration** - Seamless activity support
-- ✅ **Now Playing Info** - Current input/output display
+#### **Hotplug Control**
+- **Hotplug Event** - Trigger EDID re-negotiation for connected sources
+- **Connection Management** - Force source device reconnection
+- **EDID Refresh** - Resolve EDID handshake issues
 
-### Remote Control Entity
-- ✅ **Adaptive UI Pages** - Only shows supported features
-- ✅ **EDID Management** - Mode and audio source control (most models)
-- ✅ **HDR Control** - Custom HDR and disable toggles (most models)
-- ✅ **Scale Modes** - Video scaling options (VERTEX2, VERTEX, DIVA, Maestro, ARCANA2)
-- ✅ **Audio Modes** - Audio routing control (ARCANA2)
-- ✅ **CEC Management** - Engine control and eARC forcing (most models)
-- ✅ **System Settings** - OLED, autoswitch, HDCP mode (model-dependent)
+### 🎨 **EDID Management**
 
----
+#### **EDID Modes**
+Control EDID behavior per input:
+- **AutoMix** - Automatic EDID mixing
+- **Custom** - User-defined EDID
+- **Fixed** - Fixed EDID tables
+- **Copy** - Copy EDID from outputs
+- **EDID Slots** - Load/save custom EDID configurations
 
-## 📋 Requirements
+#### **EDID Audio Configuration**
+- **Stereo** - 2.0 audio capability
+- **5.1 Surround** - 5.1 audio formats
+- **7.1 Surround** - 7.1 audio formats (VERTEX)
+- **Full** - All audio formats
+- **Custom** - Custom audio EDID
 
-- **Unfolded Circle Remote Two** or **Remote 3** (firmware 1.6.0+)
-- **HDFury Device** (any supported model)
-- **Network Connectivity** between Remote and HDFury device
-- **HDFury Configuration**: IP INTERRUPTS must be **ON** (enabled by default)
+### 🌈 **HDR & Color Management**
 
----
+#### **HDR Control**
+- **Custom HDR** - Output custom HDR metadata
+- **Disable HDR** - Stop all HDR metadata passthrough
+- **HDR Modes** - HDR10, HLG control options
 
-## 🚀 Installation
+#### **Color Space**
+- **Auto** - Automatic color space detection
+- **RGB** - RGB 4:4:4
+- **YCbCr 4:4:4** - Component 4:4:4
+- **YCbCr 4:2:2** - Component 4:2:2
+- **YCbCr 4:2:0** - Component 4:2:0 (for 4K60 HDR)
 
-### Method 1: Remote Web Configurator (Recommended)
+#### **Deep Color**
+- **Auto** - Automatic bit depth
+- **8-bit** - Standard color depth
+- **10-bit** - Enhanced color depth
+- **12-bit** - Maximum color depth
 
-1. Download the latest `uc-intg-hdfury-X.X.X-aarch64.tar.gz` from [Releases](https://github.com/mase1981/uc-intg-hdfury/releases)
-2. Open your Unfolded Circle **Web Configurator** (http://remote-ip/)
-3. Navigate to **Integrations** → **Add Integration**
-4. Click **Upload Driver**
-5. Select the downloaded `.tar.gz` file
-6. Follow the on-screen setup wizard
+### 📐 **Video Scaling & Processing**
 
-### Method 2: Docker Run (One-Line Command)
-```bash
-docker run -d --name uc-intg-hdfury --restart unless-stopped --network host -v $(pwd)/data:/data -e UC_CONFIG_HOME=/data -e UC_INTEGRATION_INTERFACE=0.0.0.0 -e UC_INTEGRATION_HTTP_PORT=9029 -e UC_DISABLE_MDNS_PUBLISH=false ghcr.io/mase1981/uc-intg-hdfury:latest
-```
+#### **Scale Modes** (VERTEX2, VERTEX, DIVA, Maestro)
+- **Auto** - Automatic scaling
+- **Custom** - Custom scaling settings
+- **None** - No scaling (passthrough)
 
-### Method 3: Docker Compose
+#### **Advanced Scaling** (ARCANA2)
+- **Down to TX1** - Downscale to output 1
+- **FRL TMDS** - Fixed Rate Link TMDS mode
+- **Audio Only** - Audio extraction mode
+- **4K60 444 8-bit** - Specific format modes with HDR/SDR variants
 
-Create a `docker-compose.yml` file:
+#### **Output Resolution**
+- **Auto** - Automatic resolution
+- **4K60/4K30** - 4K output modes
+- **1080p60/1080p30** - 1080p output modes
+- **720p60** - 720p output mode
+
+### 🔊 **Audio Management**
+
+#### **CEC Control**
+- **CEC Engine** - Enable/disable CEC functionality
+- **CEC Logical Address** - Configure as video or audio device
+- **ARC Force** - Control Audio Return Channel modes
+- **eARC Force** - Control Enhanced Audio Return Channel modes
+
+#### **Audio Routing** (ARCANA2)
+- **Display Mode** - Audio to display
+- **eARC Mode** - Audio to eARC output
+- **Both Mode** - Audio to both outputs
+
+#### **Analog Audio** (VRRooM, DIVA, Maestro)
+- **Volume Control** - Analog output volume (-30dB to +10dB)
+- **Bass Control** - Bass adjustment (-10dB to +10dB)
+- **Treble Control** - Treble adjustment (-10dB to +10dB)
+
+#### **TX Audio Mute** (Matrix Models)
+- **TX0 Mute** - Mute output 1 audio
+- **TX1 Mute** - Mute output 2 audio
+- **Independent Control** - Per-output audio control
+
+### ⚙️ **System Settings**
+
+#### **Device Management**
+- **Reboot** - Restart HDFury device
+- **Factory Reset** - Reset to factory defaults (modes 1, 2, 3)
+- **Firmware Info** - Check firmware version
+- **Device Info** - Query device status
+
+#### **Display Control**
+- **OLED Display** - Enable/disable front panel OLED
+- **OLED Page** - Select OLED page (0-4)
+- **OLED Fade** - Set OLED fade timer (0-255 seconds)
+
+#### **HDCP Management**
+- **Auto Mode** - Automatic HDCP negotiation
+- **HDCP 1.4** - Force HDCP 1.4
+- **HDCP 2.2** - Force HDCP 2.2 (VERTEX)
+
+#### **Advanced Features**
+- **Autoswitch** - Automatic input switching
+- **TX Plus5** - +5V voltage control per output
+- **HTPC Mode** - HTPC mode per input
+- **AVI Custom/Disable** - AVI InfoFrame control
+
+### **Protocol Requirements**
+
+- **Protocol**: HDFury Telnet/IP Control
+- **Port**: Model-specific (2200-2222, see table above)
+- **IP Interrupts**: Must be enabled (ON) in device settings
+- **Network Access**: Device must be on same local network
+- **Connection**: Persistent TCP connection with automatic reconnection
+- **Timeout Handling**: Exponential backoff retry (5s → 10s → 30s → 60s → 300s)
+
+### **Network Requirements**
+
+- **Local Network Access** - Integration requires same network as HDFury device
+- **Telnet Protocol** - TCP telnet communication on configured port
+- **Static IP Recommended** - Device should have static IP or DHCP reservation
+- **Firewall** - Must allow telnet traffic on device port
+
+## Installation
+
+### Option 1: Remote Web Interface (Recommended)
+1. Navigate to the [**Releases**](https://github.com/mase1981/uc-intg-hdfury/releases) page
+2. Download the latest `uc-intg-hdfury-<version>-aarch64.tar.gz` file
+3. Open your remote's web interface (`http://your-remote-ip`)
+4. Go to **Settings** → **Integrations** → **Add Integration**
+5. Click **Upload** and select the downloaded `.tar.gz` file
+
+### Option 2: Docker (Advanced Users)
+
+The integration is available as a pre-built Docker image from GitHub Container Registry:
+
+**Image**: `ghcr.io/mase1981/uc-intg-hdfury:latest`
+
+**Docker Compose:**
 ```yaml
-version: '3.8'
-
 services:
-  hdfury-integration:
+  uc-intg-hdfury:
     image: ghcr.io/mase1981/uc-intg-hdfury:latest
     container_name: uc-intg-hdfury
-    restart: unless-stopped
     network_mode: host
     volumes:
-      - ./data:/data
+      - </local/path>:/data
     environment:
       - UC_CONFIG_HOME=/data
-      - UC_INTEGRATION_INTERFACE=0.0.0.0
       - UC_INTEGRATION_HTTP_PORT=9029
-      - UC_DISABLE_MDNS_PUBLISH=false
+      - UC_INTEGRATION_INTERFACE=0.0.0.0
+      - PYTHONPATH=/app
+    restart: unless-stopped
 ```
 
-Then run:
+**Docker Run:**
 ```bash
-docker-compose up -d
+docker run -d --name uc-hdfury --restart unless-stopped --network host -v hdfury-config:/app/config -e UC_CONFIG_HOME=/app/config -e UC_INTEGRATION_INTERFACE=0.0.0.0 -e UC_INTEGRATION_HTTP_PORT=9029 -e PYTHONPATH=/app ghcr.io/mase1981/uc-intg-hdfury:latest
 ```
 
-### Method 4: Python (Development)
-```bash
-# Clone repository
-git clone https://github.com/mase1981/uc-intg-hdfury.git
-cd uc-intg-hdfury
+## Configuration
 
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
+### Step 1: Prepare Your HDFury Device
 
-# Install dependencies
-pip install -r requirements.txt
+**IMPORTANT**: HDFury device must be powered on, connected to network, and have IP Interrupts enabled before adding the integration.
 
-# Run integration
-python uc_intg_hdfury/driver.py
-```
-
----
-
-## ⚙️ Configuration
-
-### Step 1: Configure HDFury Device
-
-**Enable IP Control:**
-1. Access HDFury device web interface or OSD menu
-2. Navigate to **Network Settings** or **IP Control**
+#### Verify IP Control:
+1. Access device OSD menu or web interface
+2. Navigate to **Network Settings** → **IP Control**
 3. Enable **IP INTERRUPTS** (set to **ON**)
-4. Note the **Port** (varies by model - see table above)
+4. Note the **Port** number (defaults vary by model)
 5. Note the device **IP Address**
 
-**Network Requirements:**
-- ✅ HDFury device must be on same network as UC Remote
-- ✅ No firewall blocking telnet communication on configured port
-- ✅ For advanced networks (UniFi, pfSense): ensure telnet traffic allowed
+#### Network Setup:
+- **Wired Connection**: Recommended for stability
+- **Static IP**: Recommended via DHCP reservation
+- **Firewall**: Allow telnet traffic on device port
+- **Network Isolation**: Must be on same subnet as Remote
 
-### Step 2: Setup in Remote Configurator
+### Step 2: Setup Integration
 
-1. In the UC Remote web configurator, go to **Integrations**
-2. Find **HDFury Controls** and click **Configure**
-3. **Select your device model** from the dropdown:
-   - VRRooM
-   - VERTEX2
-   - VERTEX
-   - DIVA
-   - Maestro
-   - ARCANA2
-   - Dr.HDMI 8K
-4. Enter device information:
-   - **IP Address**: Your HDFury device IP
-   - **Port**: Auto-filled based on model (can be customized)
-5. Click **Submit**
-6. Integration will verify connection and create entities
+1. After installation, go to **Settings** → **Integrations**
+2. The HDFury integration should appear in **Available Integrations**
+3. Click **"Configure"** to begin setup:
 
-**Note:** The port field auto-fills with the default for your selected model, but can be changed if your device uses a custom port.
+#### **Configuration:**
+- **Select Model**: Choose your HDFury device model from dropdown
+- **IP Address**: Enter device IP (e.g., 192.168.1.100)
+- **Port**: Auto-filled based on model (can be customized)
+- Click **Complete Setup**
 
----
+#### **Connection Test:**
+- Integration verifies device connectivity
+- Telnet connection established
+- Setup fails if device unreachable or IP Interrupts disabled
 
-## 🎮 Usage
+4. Integration will create entities:
+   - **Media Player**: `hdfury-[ip]`
+   - **Remote**: `hdfury-[ip]-remote`
 
-### Entities Created
+## Using the Integration
 
-For each HDFury device, **two entities** are created:
+### Media Player Entity
 
-#### 1️⃣ Media Player Entity
-- **Entity ID**: `hdfury-{ip}`
-- **Name**: `HDFury {Model}`
-- **Type**: Media Player
+The media player entity provides input control:
 
-**Features (model-dependent):**
-- Input source selection (HDMI 0-3, or Top/Bottom for VERTEX)
-- Current status display
-- Activity integration
-- Real-time state updates
+- **Power State**: Device availability monitoring
+- **Input Selection**: Dropdown with available HDMI inputs
+- **Source Names**: Model-specific input naming
+  - VRRooM/VERTEX2/DIVA/Maestro: HDMI 0-3
+  - VERTEX: Top/Bottom
+  - ARCANA2/Dr.HDMI: No input selection (passthrough)
+- **Activity Integration**: Seamless activity input switching
 
-#### 2️⃣ Remote Control Entity
-- **Entity ID**: `hdfury-{ip}-remote`
-- **Name**: `HDFury {Model} Controls`
-- **Type**: Remote
+### Remote Entity
 
-**Features:**
-- Dynamic UI pages based on device capabilities
-- Model-specific control options
-- Organized by feature category
+The remote entity provides comprehensive control with **dynamic UI pages** based on device capabilities:
 
-### Adding to Activities
+#### **Sources Page** (Multi-input models)
+Direct HDMI input selection buttons
 
-1. Create or edit an **Activity**
-2. Add the **HDFury {Model}** (Media Player) entity
-3. Configure input switching for activity start
-4. Set default HDMI input if desired
-5. Use the **HDFury {Model} Controls** (Remote) entity for advanced settings
+#### **EDID Page** (Most models)
+- EDID mode selection
+- Audio format configuration
+- EDID slot management
 
-### Control Pages by Model
+#### **Scale Page** (VERTEX2, VERTEX, DIVA, Maestro, ARCANA2)
+Video scaling mode control
 
-The integration automatically creates UI pages based on your device's capabilities:
+#### **Audio Page** (ARCANA2)
+Audio routing configuration
 
-#### Sources Page (VRRooM, VERTEX2, VERTEX, DIVA, Maestro)
-Direct selection of HDMI inputs:
-- **VRRooM/VERTEX2/DIVA/Maestro**: HDMI 0-3 buttons
-- **VERTEX**: Top and Bottom buttons
+#### **HDR Page** (Most models)
+- Custom HDR control
+- HDR disable toggle
+- Color space selection
+- Deep color modes
 
-#### EDID Page (Most models)
-EDID management controls:
-- **EDID Mode**: automix, custom, fixed, copy options (varies by model)
-- **Audio Source**: stereo, 5.1, full, and model-specific options
+#### **CEC/eARC Page** (VRRooM, VERTEX2, DIVA, Maestro)
+- CEC engine control
+- ARC/eARC force modes
+- CEC logical address
 
-#### Scale Page (VERTEX2, VERTEX, DIVA, Maestro, ARCANA2)
-Video scaling options:
-- **VERTEX2/VERTEX/DIVA/Maestro**: auto, custom, none
-- **ARCANA2**: Extensive 4K scaling modes including HDR/SDR variants
+#### **System Page** (Model-dependent)
+- OLED display control
+- Autoswitch toggle
+- HDCP mode selection
+- Reboot button
+- Hotplug trigger
 
-#### Audio Page (ARCANA2 only)
-Audio routing control:
-- **Audio Mode**: display, earc, both
+## Credits
 
-#### HDR Page (Most models)
-HDR metadata control:
-- **Custom HDR**: ON/OFF - Output custom HDR metadata
-- **Disable HDR**: ON/OFF - Stop all HDR metadata
+- **Developer**: Meir Miyara
+- **HDFury**: Premium HDMI processing devices
+- **Unfolded Circle**: Remote 2/3 integration framework (ucapi)
+- **Protocol**: HDFury Telnet/IP Control Protocol
+- **Community**: Testing and feedback from UC and HDFury communities
 
-#### CEC/eARC Page (VRRooM, VERTEX2, DIVA, Maestro)
-Audio return and control:
-- **CEC Engine**: ON/OFF - Enable/disable CEC
-- **eARC Force Mode**: auto, earc, hdmi (varies by model)
+## License
 
-#### System Page (Model-dependent)
-Device settings (availability varies):
-- **OLED Display**: ON/OFF - Control front panel
-- **Autoswitch**: ON/OFF - Automatic input switching
-- **HDCP Mode**: auto, 1.4 - HDCP version control
+This project is licensed under the Mozilla Public License 2.0 (MPL-2.0) - see LICENSE file for details.
+
+## Support & Community
+
+- **GitHub Issues**: [Report bugs and request features](https://github.com/mase1981/uc-intg-hdfury/issues)
+- **UC Community Forum**: [General discussion and support](https://unfolded.community/)
+- **Discord**: [Unfolded Circle Discord](https://discord.gg/zGVYf58)
+- **Developer**: [Meir Miyara](https://www.linkedin.com/in/meirmiyara)
+- **HDFury Support**: [Official HDFury Support](https://www.hdfury.com/support/)
 
 ---
 
-## 🔧 Troubleshooting
+**Made with ❤️ for the Unfolded Circle and HDFury Communities**
 
-### Connection Issues During Setup
-
-**Problem**: Setup fails with "Could not connect" or timeout
-
-**Solutions:**
-1. ✅ Verify HDFury device is powered on
-2. ✅ Confirm IP address is correct
-3. ✅ Check IP INTERRUPTS is enabled (ON)
-4. ✅ Verify port number matches your device model
-5. ✅ Test telnet manually: `telnet <ip> <port>`
-6. ✅ Check firewall/router not blocking telnet traffic
-7. ✅ Ensure HDFury and UC Remote on same network/VLAN
-
-### Wrong Model Selected
-
-**Problem**: Integration doesn't work correctly or shows wrong features
-
-**Solution:**
-1. Delete the device from integration
-2. Re-add and select the correct model from dropdown
-3. Verify model selection matches your physical device
-
-### Commands Not Executing
-
-**Problem**: Buttons show success but device doesn't respond
-
-**Solutions:**
-1. ✅ Check OLED display on device for command confirmation
-2. ✅ Verify device firmware is up to date
-3. ✅ Restart HDFury device
-4. ✅ Restart integration in UC Remote web configurator
-5. ✅ For Docker: check logs with `docker logs uc-intg-hdfury`
-
-### Entity Shows Unavailable
-
-**Problem**: Entity appears unavailable after Remote restart
-
-**Solutions:**
-1. ✅ Wait 30-60 seconds for automatic reconnection
-2. ✅ Check HDFury device is still reachable on network
-3. ✅ Verify IP address hasn't changed (set static IP on device)
-4. ✅ Restart integration from web configurator
-5. ✅ Check integration logs for connection errors
-
-### Docker Container Issues
-
-**Problem**: Docker container not starting or crashing
-
-**Solutions:**
-1. ✅ Check container logs: `docker logs uc-intg-hdfury`
-2. ✅ Verify network mode is set to `host`
-3. ✅ Ensure port 9029 is not in use by another service
-4. ✅ Check volume permissions for `./data` directory
-5. ✅ Pull latest image: `docker pull ghcr.io/mase1981/uc-intg-hdfury:latest`
-
-### Missing UI Pages
-
-**Problem**: Expected control pages don't appear
-
-**Solution:** This is normal behavior. The integration only shows UI pages for features your specific device supports. For example:
-- ARCANA2 won't show Sources page (passthrough device)
-- Dr.HDMI 8K won't show HDR or CEC pages
-- Check the feature matrix above for your model's capabilities
-
----
-
-## ⚠️ Known Limitations
-
-| Limitation | Explanation | Workaround |
-|-----------|-------------|------------|
-| **Single device per integration instance** | Each HDFury device requires separate setup | Run multiple integration instances if needed |
-| **No output power control** | Most HDFury devices are designed to stay powered on | Use device-specific power features if available |
-| **Status polling disabled** | To prevent device overload during activities | Commands update state immediately |
-| **Model-specific features** | Some settings only apply to certain models | Integration automatically hides unsupported features |
-| **No automatic model detection** | User must select correct model during setup | Refer to device label or documentation |
-
----
-
-## 🗃️ Architecture
-
-### Integration Components
-```
-uc-intg-hdfury/
-├── uc_intg_hdfury/
-│   ├── __init__.py           # Package initialization with version
-│   ├── config.py             # Configuration management with persistence
-│   ├── device.py             # Device abstraction and state management
-│   ├── driver.py             # Main integration driver
-│   ├── hdfury_client.py      # Telnet communication client
-│   ├── media_player.py       # Media Player entity implementation
-│   ├── models.py             # Model configurations and feature definitions
-│   └── remote.py             # Remote Control entity with dynamic UI
-├── driver.json               # Integration metadata
-├── pyproject.toml            # Python project configuration
-├── requirements.txt          # Runtime dependencies
-├── Dockerfile                # Docker container build
-├── docker-compose.yml        # Docker Compose configuration
-├── LICENSE                   # MPL-2.0 license
-└── README.md                 # This file
-```
-
-### Dependencies
-
-- **ucapi** (>=0.3.1) - Unfolded Circle Integration API
-- **pyee** (~=9.0.4) - Event emitter for async patterns
-- **certifi** - SSL certificate verification
-
----
-
-## 💨‍💻 Development
-
-### Building From Source
-```bash
-# Clone repository
-git clone https://github.com/mase1981/uc-intg-hdfury.git
-cd uc-intg-hdfury
-
-# Install in development mode
-pip install -e ".[dev]"
-
-# Run tests
-pytest
-
-# Build distribution package
-python -m build
-
-# Output: dist/uc-intg-hdfury-X.X.X.tar.gz
-```
-
-### Contributing
-
-Contributions are welcome! Please follow these guidelines:
-
-1. 🍴 Fork the repository
-2. 🌿 Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. 💾 Commit your changes (`git commit -m 'Add amazing feature'`)
-4. 📤 Push to the branch (`git push origin feature/amazing-feature`)
-5. 🎉 Open a Pull Request
-
-### Code Style
-
-- Follow PEP 8 guidelines
-- Use type hints where applicable
-- Add docstrings to all functions and classes
-- Keep line length to 100 characters
-- Use absolute imports only
-
----
-
-## 🙏 Credits & Acknowledgments
-
-### Integration Development
-- **Author**: [Meir Miyara](https://www.linkedin.com/in/meirmiyara/)
-
-### Libraries & References
-- **Unfolded Circle**: [Integration Python Library](https://github.com/unfoldedcircle/integration-python-library)
-- **HDFury**: For their excellent HDMI processing devices
-
-### Community
-- **Unfolded Circle Community**: For testing and feedback
-- **HDFury Community**: For device specifications and command reference
-
----
-
-## 💖 Support the Project
-
-If you find this integration useful, please consider:
-
-- ⭐ **Star this repository** on GitHub
-- 🐛 **Report issues** to help improve the integration
-- 💡 **Share feedback** in discussions
-- 📖 **Contribute** documentation or code improvements
-
-### Sponsor
-
-If you'd like to support continued development:
-
-[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub-pink?logo=github)](https://github.com/sponsors/mase1981)
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-Support-yellow?logo=buy-me-a-coffee)](https://www.buymeacoffee.com/meirmiyara)
-[![PayPal](https://img.shields.io/badge/PayPal-Support-blue?logo=paypal)](https://www.paypal.com/paypalme/mmiyara)
-
----
-
-## 📞 Support & Community
-
-### Getting Help
-
-- 📋 **Issues**: [GitHub Issues](https://github.com/mase1981/uc-intg-hdfury/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/mase1981/uc-intg-hdfury/discussions)
-- 🎮 **Discord**: [Unfolded Circle Discord](https://discord.gg/zGVYf58)
-- 🌐 **UC Community**: [Unfolded Circle Forum](https://unfoldedcircle.com/community)
-
-### Reporting Issues
-
-When reporting issues, please include:
-
-1. Integration version (v0.3.0+)
-2. **HDFury device model** (VRRooM, VERTEX2, etc.)
-3. UC Remote firmware version
-4. Detailed description of the problem
-5. Relevant log excerpts (from web configurator or Docker logs)
-
----
-
-## 📜 License
-
-This project is licensed under the **Mozilla Public License 2.0** (MPL-2.0).
-
-See the [LICENSE](LICENSE) file for full details.
-```
-Copyright (c) 2025 Meir Miyara
-
-This Source Code Form is subject to the terms of the Mozilla Public
-License, v. 2.0. If a copy of the MPL was not distributed with this
-file, You can obtain one at http://mozilla.org/MPL/2.0/.
-```
-
----
-
-## 🚨 Disclaimer
-
-This is an independent integration and is not officially affiliated with, endorsed by, or supported by HDFury or Unfolded Circle.
-
----
-
-<div align="center">
-
-**Enjoy controlling your HDFury devices with your Unfolded Circle Remote!** 🎉
-
-Made with ❤️ by [Meir Miyara](https://www.linkedin.com/in/meirmiyara/)
-
-</div>
+**Thank You**: Meir Miyara
