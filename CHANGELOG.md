@@ -5,6 +5,30 @@ All notable changes to the HDFury Integration will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-01-22
+
+### Added
+- **Sensor Entities**: Added comprehensive sensor support for real-time device monitoring
+  - Connection Status sensor - Shows device connection state
+  - Firmware Version sensor - Displays current firmware version
+  - Current Input sensor - Shows selected input source
+  - EDID Mode sensor - Displays active EDID configuration
+  - HDR Mode sensor - Shows HDR status and mode
+  - HDCP Mode sensor - Displays HDCP version in use
+  - OLED Display Status sensor - Shows OLED on/off state
+  - Autoswitch Status sensor - Shows autoswitch on/off state
+  - Color Space sensor - Displays active color space mode
+  - Deep Color sensor - Shows active bit depth
+- All commands now available as simple commands for activity setup
+
+### Fixed
+- **Reboot Button Visibility**: Fixed reboot and hotplug buttons always visible on System page (was conditionally hidden)
+- Sensor state updates properly synchronized with device state changes
+
+### Updated
+- **ucapi Library**: Updated from 0.3.1 to 0.5.1 for sensor support
+- **min_core_api**: Updated requirement to 0.5.1 for sensor compatibility
+
 ## [0.4.0] - 2026-01-22
 
 ### Added

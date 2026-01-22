@@ -97,6 +97,8 @@ async def driver_setup_handler(request: ucapi.SetupDriver) -> ucapi.SetupAction:
         
         api.available_entities.add(device.media_player_entity)
         api.available_entities.add(device.remote_entity)
+        for sensor_entity in device.sensor_entities:
+            api.available_entities.add(sensor_entity)
         device.events.on(EVENTS.UPDATE, on_device_update)
 
         # Start device with retry logic
@@ -207,6 +209,15 @@ def push_device_state(device: HDFuryDevice):
             api.configured_entities.update_attributes(remote_entity.id, remote_attributes)
             log.debug(f"Pushed state to entity {remote_entity.id}")
 
+    for sensor_entity in device.sensor_entities:
+        if api.configured_entities.contains(sensor_entity.id):
+            sensor_attributes = {
+                "state": sensor_entity.attributes.get("state"),
+                "value": sensor_entity.attributes.get("value"),
+            }
+            api.configured_entities.update_attributes(sensor_entity.id, sensor_attributes)
+            log.debug(f"Pushed state to sensor {sensor_entity.id}")
+
 def add_device(device_config: HDFuryDeviceConfig):
     identifier = device_config.identifier
     if identifier in configured_devices: 
@@ -219,6 +230,8 @@ def add_device(device_config: HDFuryDeviceConfig):
     
     api.available_entities.add(device.media_player_entity)
     api.available_entities.add(device.remote_entity)
+    for sensor_entity in device.sensor_entities:
+        api.available_entities.add(sensor_entity)
     device.events.on(EVENTS.UPDATE, on_device_update)
     configured_devices[identifier] = device
 

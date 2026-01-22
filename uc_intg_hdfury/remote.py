@@ -608,18 +608,17 @@ class HDFuryRemote(Remote):
                 ))
             y_pos += 2
 
-        if y_pos < 5:
-            items.append(create_ui_text(
-                text="Reboot",
-                x=0,
-                y=y_pos,
-                cmd=EntityCommand("reboot_device", {"command": "reboot_device"})
-            ))
-            items.append(create_ui_text(
-                text="Hotplug",
-                x=1,
-                y=y_pos,
-                cmd=EntityCommand("hotplug", {"command": "hotplug"})
-            ))
+        items.append(create_ui_text(
+            text="Reboot",
+            x=0,
+            y=y_pos,
+            cmd=EntityCommand("reboot_device", {"command": "reboot_device"})
+        ))
+        items.append(create_ui_text(
+            text="Hotplug",
+            x=1,
+            y=y_pos,
+            cmd=EntityCommand("hotplug", {"command": "hotplug"})
+        ))
 
         return UiPage(page_id="system", name="System", items=items)

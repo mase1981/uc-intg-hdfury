@@ -11,6 +11,7 @@ from pyee.asyncio import AsyncIOEventEmitter
 from uc_intg_hdfury.hdfury_client import HDFuryClient, HDFuryConnectionError, HDFuryCommandError
 from uc_intg_hdfury.media_player import HDFuryMediaPlayer
 from uc_intg_hdfury.remote import HDFuryRemote
+from uc_intg_hdfury.sensor import HDFurySensor
 from uc_intg_hdfury.models import ModelConfig, get_source_list
 from ucapi import media_player, api_definitions
 
@@ -51,6 +52,7 @@ class HDFuryDevice:
         
         self.media_player_entity = HDFuryMediaPlayer(self)
         self.remote_entity = HDFuryRemote(self)
+        self.sensor_entities = HDFurySensor.create_sensors(self.device_id, self.name, model_config)
         
     async def start(self):
         log.info(f"HDFuryDevice: Starting connection for {self.host}")
@@ -66,7 +68,9 @@ class HDFuryDevice:
                 self.state = media_player.States.ON
                 self.media_title = "Ready"
                 self._last_successful_command = asyncio.get_event_loop().time()
-                
+
+                self._update_connection_sensor(True)
+
                 if not self._keep_alive_task or self._keep_alive_task.done():
                     self._keep_alive_task = asyncio.create_task(self._keep_alive_loop())
             else:
@@ -77,8 +81,9 @@ class HDFuryDevice:
             self.media_title = "Connection Error"
             self.media_artist = ""
             self.media_album = ""
+            self._update_connection_sensor(False)
             log.error(f"HDFuryDevice connection error: {e}", exc_info=True)
-        
+
         self.events.emit(EVENTS.UPDATE, self)
 
     async def stop(self):
@@ -152,6 +157,7 @@ class HDFuryDevice:
                 source = command.replace("set_source_", "").replace("_", " ")
                 await self.client.set_source(source)
                 self.current_source = source
+                self._update_input_sensor(source)
             
             elif command.startswith("route_tx"):
                 parts = command.split("_", 2)
@@ -361,6 +367,7 @@ class HDFuryDevice:
                                     self.state = media_player.States.ON
                                     self.media_title = "Ready"
                                     self._last_successful_command = current_time
+                                    self._update_connection_sensor(True)
                                     self.events.emit(EVENTS.UPDATE, self)
                                     log.info(f"HDFuryDevice: Reconnected successfully to {self.host}")
                                     retry_attempt = 0
@@ -406,8 +413,31 @@ class HDFuryDevice:
         log.info(f"HDFuryDevice received remote command: {actual_cmd}")
         
         result = await self._queue_command(actual_cmd)
-        
+
         if result == api_definitions.StatusCodes.OK:
             self.events.emit(EVENTS.UPDATE, self)
-        
+
         return result
+
+    def _get_sensor_by_id_suffix(self, suffix: str):
+        """Get sensor entity by ID suffix."""
+        target_id = f"{self.device_id}-{suffix}"
+        for sensor in self.sensor_entities:
+            if sensor.id == target_id:
+                return sensor
+        return None
+
+    def _update_connection_sensor(self, connected: bool):
+        """Update connection sensor."""
+        if sensor := self._get_sensor_by_id_suffix("connection"):
+            HDFurySensor.update_connection_sensor(sensor, connected)
+
+    def _update_firmware_sensor(self, version: str):
+        """Update firmware sensor."""
+        if sensor := self._get_sensor_by_id_suffix("firmware"):
+            HDFurySensor.update_firmware_sensor(sensor, version)
+
+    def _update_input_sensor(self, input_name: str):
+        """Update current input sensor."""
+        if sensor := self._get_sensor_by_id_suffix("current-input"):
+            HDFurySensor.update_input_sensor(sensor, input_name)
