@@ -20,8 +20,11 @@ loop = asyncio.get_event_loop()
 api = ucapi.api.IntegrationAPI(loop=loop)
 configured_devices: dict[str, HDFuryDevice] = {}
 devices_config: Devices | None = None
+entities_ready: bool = False
+initialization_lock: asyncio.Lock = asyncio.Lock()
 
 async def driver_setup_handler(request: ucapi.SetupDriver) -> ucapi.SetupAction:
+    global entities_ready
     if isinstance(request, ucapi.DriverSetupRequest):
         return ucapi.RequestUserInput(
             title={"en": "Select HDFury Device Model"},
@@ -106,14 +109,17 @@ async def driver_setup_handler(request: ucapi.SetupDriver) -> ucapi.SetupAction:
             configured_devices[identifier] = device
             new_config = HDFuryDeviceConfig(identifier, device.name, host, port, model_id)
             devices_config.add(new_config)
+            entities_ready = True
+            log.info(f"Device {identifier} added and entities ready")
             return ucapi.SetupComplete()
-            
+
         except asyncio.TimeoutError:
             log.error("Device connection timed out during setup")
-            # Still complete setup - device will retry connection
             configured_devices[identifier] = device
             new_config = HDFuryDeviceConfig(identifier, device.name, host, port, model_id)
             devices_config.add(new_config)
+            entities_ready = True
+            log.info(f"Device {identifier} added (timeout) but entities ready")
             return ucapi.SetupComplete()
             
         except Exception as e:
@@ -124,8 +130,20 @@ async def driver_setup_handler(request: ucapi.SetupDriver) -> ucapi.SetupAction:
 
 @api.listens_to(api_definitions.Events.CONNECT)
 async def on_connect() -> None:
-    log.info("Remote connected. Setting driver state to CONNECTED.")
-    await api.set_device_state(DeviceStates.CONNECTED)
+    global entities_ready
+
+    log.info("Remote Two connected")
+
+    if devices_config:
+        devices_config.load()
+        log.debug("Configuration reloaded from disk")
+
+    if entities_ready:
+        log.info("Entities ready, setting driver state to CONNECTED")
+        await api.set_device_state(DeviceStates.CONNECTED)
+    else:
+        log.warning("Entities not ready on connect, may need manual device configuration")
+        await api.set_device_state(DeviceStates.DISCONNECTED)
 
 @api.listens_to(api_definitions.Events.DISCONNECT)
 async def on_disconnect() -> None:
@@ -133,14 +151,22 @@ async def on_disconnect() -> None:
 
 @api.listens_to(api_definitions.Events.SUBSCRIBE_ENTITIES)
 async def on_subscribe_entities(entity_ids: list[str]):
+    global entities_ready
+
+    log.info(f"Entities subscribed: {entity_ids}")
+
+    if not entities_ready:
+        log.error("RACE CONDITION DETECTED: Subscription before entities ready!")
+        log.warning("Entities not fully initialized yet, waiting for initialization...")
+        return
+
     all_device_ids = { eid.split('.')[-1].split('-remote')[0] for eid in entity_ids }
-    
+
     for identifier in all_device_ids:
         if identifier in configured_devices:
             device = configured_devices[identifier]
             log.info(f"Entity subscription for {identifier}, checking connection...")
-            
-            # Add small delay if device was recently used to avoid connection conflicts
+
             if device.client.is_connected():
                 log.info(f"Device {identifier} already connected")
             else:
@@ -149,8 +175,7 @@ async def on_subscribe_entities(entity_ids: list[str]):
                     await device.start()
                 except Exception as e:
                     log.error(f"Failed to start device {identifier}: {e}")
-                    # Don't fail - device will retry later
-            
+
             push_device_state(device)
 
 @api.listens_to(api_definitions.Events.UNSUBSCRIBE_ENTITIES)
@@ -203,26 +228,31 @@ async def cleanup_on_shutdown():
         await asyncio.gather(*[d.stop() for d in configured_devices.values()], return_exceptions=True)
 
 async def main():
-    global devices_config
+    global devices_config, entities_ready
     log.info("Starting HDFury driver...")
-    
+
     devices_config = Devices(api.config_dir_path, add_device, None)
     for device_config in devices_config.all():
         add_device(device_config)
-    
+
     await api.init(driver_path="driver.json", setup_handler=driver_setup_handler)
-    
+
     if configured_devices:
-        log.info(f"Starting connection tasks for {len(configured_devices)} configured device(s).")
-        # Start devices with delays between them to avoid connection conflicts
+        log.info(f"Pre-configuring {len(configured_devices)} device(s) before UC Remote connection...")
+
         for i, device in enumerate(configured_devices.values()):
             if i > 0:
-                await asyncio.sleep(1.0)  # Delay between device connections
+                await asyncio.sleep(1.0)
             try:
                 await device.start()
             except Exception as e:
                 log.error(f"Failed to start device: {e}")
-                # Continue with other devices
+
+        entities_ready = True
+        log.info(f"HDFury integration ready - {len(configured_devices)} device(s) configured and entities ready")
+    else:
+        entities_ready = True
+        log.info("No devices configured, but marking entities as ready")
     
 if __name__ == "__main__":
     try:

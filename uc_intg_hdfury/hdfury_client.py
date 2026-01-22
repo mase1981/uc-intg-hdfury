@@ -8,6 +8,16 @@ import asyncio
 import logging
 from uc_intg_hdfury.models import ModelConfig, format_source_for_command
 
+
+class HDFuryConnectionError(Exception):
+    """Connection-related error."""
+    pass
+
+
+class HDFuryCommandError(Exception):
+    """Command execution error."""
+    pass
+
 class HDFuryClient:
     def __init__(self, host: str, port: int, log: logging.Logger, model_config: ModelConfig):
         self.host, self.port, self.log = host, port, log
@@ -217,6 +227,57 @@ class HDFuryClient:
         await self.send_command(f"set ledredgain {value}")
         await self.send_command(f"set ledgreengain {value}")
         await self.send_command(f"set ledbluegain {value}")
+
+    async def mute_tx_audio(self, output: int, state: bool):
+        await self.send_command(f"set mutetx{output}audio {'on' if state else 'off'}")
+
+    async def set_analog_volume(self, value: int):
+        value = max(-30, min(10, value))
+        await self.send_command(f"set analogvolume {value}")
+
+    async def set_analog_bass(self, value: int):
+        value = max(-10, min(10, value))
+        await self.send_command(f"set analogbass {value}")
+
+    async def set_analog_treble(self, value: int):
+        value = max(-10, min(10, value))
+        await self.send_command(f"set analogtreble {value}")
+
+    async def set_tx_plus5(self, output: int, state: bool):
+        await self.send_command(f"set tx{output}plus5 {'on' if state else 'off'}")
+
+    async def set_htpc_mode(self, port: int, state: bool):
+        await self.send_command(f"set htpcmode{port} {'on' if state else 'off'}")
+
+    async def set_oled_page(self, page: int):
+        page = max(0, min(4, page))
+        await self.send_command(f"set oledpage {page}")
+
+    async def set_oled_fade(self, seconds: int):
+        seconds = max(0, min(255, seconds))
+        await self.send_command(f"set oledfade {seconds}")
+
+    async def set_cec_logical_address(self, address: str):
+        if address in ["video", "audio"]:
+            await self.send_command(f"set cecla {address}")
+
+    async def set_avi_custom(self, state: bool):
+        await self.send_command(f"set avicustom {'on' if state else 'off'}")
+
+    async def set_avi_disable(self, state: bool):
+        await self.send_command(f"set avidisable {'on' if state else 'off'}")
+
+    async def reboot(self):
+        await self.send_command("set reboot")
+
+    async def factory_reset(self, mode: int):
+        if mode in [1, 2, 3]:
+            await self.send_command(f"set factoryreset {mode}")
+        else:
+            raise HDFuryCommandError(f"Invalid factory reset mode: {mode}. Must be 1, 2, or 3.")
+
+    async def hotplug(self):
+        await self.send_command("set hotplug")
 
     async def get_firmware_version(self) -> str:
         response = await self.send_command("get ver")

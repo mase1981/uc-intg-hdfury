@@ -136,12 +136,60 @@ class HDFuryRemote(Remote):
         for mode in model_config.hdcp_modes:
             cmd_id = f"set_hdcp_{'14' if mode == '1.4' else mode}"
             commands.append(cmd_id)
-        
+
+        if model_config.matrix_outputs:
+            for i in range(model_config.matrix_outputs):
+                commands.extend([
+                    f"mute_tx{i}audio_on",
+                    f"mute_tx{i}audio_off",
+                    f"set_tx{i}plus5_on",
+                    f"set_tx{i}plus5_off"
+                ])
+
+        if model_config.model_id in ["vrroom", "maestro", "diva"]:
+            for val in [-30, -20, -10, 0, 10]:
+                commands.append(f"set_analogvolume_{val}")
+            for val in [-10, -5, 0, 5, 10]:
+                commands.append(f"set_analogbass_{val}")
+                commands.append(f"set_analogtreble_{val}")
+
+        if model_config.input_count > 0:
+            for i in range(model_config.input_count):
+                commands.extend([
+                    f"set_htpcmode{i}_on",
+                    f"set_htpcmode{i}_off"
+                ])
+
+        if model_config.oled_support:
+            for page in range(5):
+                commands.append(f"set_oledpage_{page}")
+            for fade in [0, 30, 60, 120, 255]:
+                commands.append(f"set_oledfade_{fade}")
+
+        if model_config.cec_support:
+            commands.extend([
+                "set_cecla_video",
+                "set_cecla_audio"
+            ])
+
+        if model_config.model_id in ["vrroom", "vertex2", "diva"]:
+            commands.extend([
+                "set_avicustom_on",
+                "set_avicustom_off",
+                "set_avidisable_on",
+                "set_avidisable_off"
+            ])
+
         commands.extend([
+            "reboot_device",
+            "hotplug",
+            "factoryreset_1",
+            "factoryreset_2",
+            "factoryreset_3",
             "get_firmware_version",
             "get_device_info"
         ])
-        
+
         return commands
 
     def _build_ui_pages(self) -> list[UiPage]:
@@ -553,10 +601,25 @@ class HDFuryRemote(Remote):
             for i, mode in enumerate(model_config.hdcp_modes):
                 cmd_id = f"set_hdcp_{'14' if mode == '1.4' else mode}"
                 items.append(create_ui_text(
-                    text=mode, 
-                    x=i, 
-                    y=y_pos, 
+                    text=mode,
+                    x=i,
+                    y=y_pos,
                     cmd=EntityCommand(cmd_id, {"command": cmd_id})
                 ))
+            y_pos += 2
+
+        if y_pos < 5:
+            items.append(create_ui_text(
+                text="Reboot",
+                x=0,
+                y=y_pos,
+                cmd=EntityCommand("reboot_device", {"command": "reboot_device"})
+            ))
+            items.append(create_ui_text(
+                text="Hotplug",
+                x=1,
+                y=y_pos,
+                cmd=EntityCommand("hotplug", {"command": "hotplug"})
+            ))
 
         return UiPage(page_id="system", name="System", items=items)
