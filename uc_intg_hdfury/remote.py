@@ -620,4 +620,4 @@ class HDFuryRemote(Remote):
             cmd=EntityCommand("hotplug", {"command": "hotplug"})
         ))
 
-        return UiPage(page_id="system", name="System", items=items)
+        return UiPage(page_id="system", name="System", grid=Size(4, 8), items=items)
