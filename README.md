@@ -19,7 +19,7 @@ Control your HDFury HDMI processing devices directly from your Unfolded Circle R
 This integration provides comprehensive control of HDFury HDMI processing devices through native telnet/IP protocol, delivering seamless integration with your Unfolded Circle Remote for complete HDMI management and video processing control.
 
 ---
-## 💰 Support Development
+## ❤️ Support Development ❤️
 
 If you find this integration useful, consider supporting development:
 
