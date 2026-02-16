@@ -393,6 +393,56 @@ class HDFuryClient:
             self.log.debug(f"Failed to get eARC force mode: {e}")
             return None
 
+    async def get_audio_tx0(self) -> str | None:
+        try:
+            mode_resp = await self.send_command("get audiomodetx0")
+            mode = "Unknown"
+            if mode_resp and "audiomodetx0" in mode_resp:
+                parts = mode_resp.split(None, 1)
+                if len(parts) >= 2:
+                    mode = parts[1]
+
+            status_resp = await self.send_command("get status aud0")
+            if status_resp and "AUD0:" in status_resp:
+                audio_info = status_resp.replace("AUD0:", "").strip()
+                if audio_info:
+                    return audio_info
+            return mode
+        except Exception as e:
+            self.log.debug(f"Failed to get audio TX0: {e}")
+            return None
+
+    async def get_audio_tx1(self) -> str | None:
+        try:
+            mode_resp = await self.send_command("get audiomodetx1")
+            mode = "Unknown"
+            if mode_resp and "audiomodetx1" in mode_resp:
+                parts = mode_resp.split(None, 1)
+                if len(parts) >= 2:
+                    mode = parts[1]
+
+            status_resp = await self.send_command("get status aud1")
+            if status_resp and "AUD1:" in status_resp:
+                audio_info = status_resp.replace("AUD1:", "").strip()
+                if audio_info:
+                    return audio_info
+            return mode
+        except Exception as e:
+            self.log.debug(f"Failed to get audio TX1: {e}")
+            return None
+
+    async def get_audio_out(self) -> str | None:
+        try:
+            response = await self.send_command("get status audout")
+            if response and "AUDOUT:" in response:
+                audio_info = response.replace("AUDOUT:", "").strip()
+                if audio_info:
+                    return audio_info
+            return "No signal"
+        except Exception as e:
+            self.log.debug(f"Failed to get audio out: {e}")
+            return None
+
     async def poll_device_state(self) -> dict:
         state = {}
         try:
@@ -431,6 +481,21 @@ class HDFuryClient:
                 autosw = await self.get_autoswitch_status()
                 if autosw is not None:
                     state["autoswitch_status"] = autosw
+
+            if self.model_config.matrix_outputs and self.model_config.matrix_outputs >= 1:
+                audio_tx0 = await self.get_audio_tx0()
+                if audio_tx0:
+                    state["audio_tx0"] = audio_tx0
+
+            if self.model_config.matrix_outputs and self.model_config.matrix_outputs >= 2:
+                audio_tx1 = await self.get_audio_tx1()
+                if audio_tx1:
+                    state["audio_tx1"] = audio_tx1
+
+            if self.model_config.model_id in ["vrroom", "vertex2", "vertex", "diva", "maestro"]:
+                audio_out = await self.get_audio_out()
+                if audio_out:
+                    state["audio_out"] = audio_out
 
         except Exception as e:
             self.log.error(f"Error polling device state: {e}")

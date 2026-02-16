@@ -126,6 +126,15 @@ class HDFuryDevice:
             if "autoswitch_status" in state:
                 self._update_autoswitch_status_sensor(state["autoswitch_status"])
 
+            if "audio_tx0" in state:
+                self._update_audio_tx0_sensor(state["audio_tx0"])
+
+            if "audio_tx1" in state:
+                self._update_audio_tx1_sensor(state["audio_tx1"])
+
+            if "audio_out" in state:
+                self._update_audio_out_sensor(state["audio_out"])
+
             self.events.emit(EVENTS.UPDATE, self)
 
         except Exception as e:
@@ -608,3 +617,18 @@ class HDFuryDevice:
         """Update deep color sensor."""
         if sensor := self._get_sensor_by_id_suffix("deep-color"):
             HDFurySensor.update_deep_color_sensor(sensor, mode)
+
+    def _update_audio_tx0_sensor(self, audio_info: str):
+        """Update audio TX0 sensor."""
+        if sensor := self._get_sensor_by_id_suffix("audio-tx0"):
+            HDFurySensor.update_audio_tx0_sensor(sensor, audio_info)
+
+    def _update_audio_tx1_sensor(self, audio_info: str):
+        """Update audio TX1 sensor."""
+        if sensor := self._get_sensor_by_id_suffix("audio-tx1"):
+            HDFurySensor.update_audio_tx1_sensor(sensor, audio_info)
+
+    def _update_audio_out_sensor(self, audio_info: str):
+        """Update audio out sensor."""
+        if sensor := self._get_sensor_by_id_suffix("audio-out"):
+            HDFurySensor.update_audio_out_sensor(sensor, audio_info)

@@ -178,6 +178,51 @@ class HDFurySensor:
                 }
             ))
 
+        if model_config.matrix_outputs and model_config.matrix_outputs >= 1:
+            sensors.append(Sensor(
+                identifier=f"{device_id}-audio-tx0",
+                name=f"{device_name} Audio TX0",
+                features=[],
+                attributes={
+                    Attributes.STATE: States.UNKNOWN,
+                    Attributes.VALUE: "Unknown",
+                },
+                device_class=DeviceClasses.CUSTOM,
+                options={
+                    Options.CUSTOM_UNIT: "audio"
+                }
+            ))
+
+        if model_config.matrix_outputs and model_config.matrix_outputs >= 2:
+            sensors.append(Sensor(
+                identifier=f"{device_id}-audio-tx1",
+                name=f"{device_name} Audio TX1",
+                features=[],
+                attributes={
+                    Attributes.STATE: States.UNKNOWN,
+                    Attributes.VALUE: "Unknown",
+                },
+                device_class=DeviceClasses.CUSTOM,
+                options={
+                    Options.CUSTOM_UNIT: "audio"
+                }
+            ))
+
+        if model_config.model_id in ["vrroom", "vertex2", "vertex", "diva", "maestro"]:
+            sensors.append(Sensor(
+                identifier=f"{device_id}-audio-out",
+                name=f"{device_name} Audio Out",
+                features=[],
+                attributes={
+                    Attributes.STATE: States.UNKNOWN,
+                    Attributes.VALUE: "Unknown",
+                },
+                device_class=DeviceClasses.CUSTOM,
+                options={
+                    Options.CUSTOM_UNIT: "audio"
+                }
+            ))
+
         log.info(f"Created {len(sensors)} sensor entities for {device_name}")
         return sensors
 
@@ -240,3 +285,21 @@ class HDFurySensor:
         """Update deep color sensor."""
         sensor.attributes[Attributes.STATE] = States.ON
         sensor.attributes[Attributes.VALUE] = mode
+
+    @staticmethod
+    def update_audio_tx0_sensor(sensor: Sensor, audio_info: str) -> None:
+        """Update audio TX0 sensor."""
+        sensor.attributes[Attributes.STATE] = States.ON
+        sensor.attributes[Attributes.VALUE] = audio_info
+
+    @staticmethod
+    def update_audio_tx1_sensor(sensor: Sensor, audio_info: str) -> None:
+        """Update audio TX1 sensor."""
+        sensor.attributes[Attributes.STATE] = States.ON
+        sensor.attributes[Attributes.VALUE] = audio_info
+
+    @staticmethod
+    def update_audio_out_sensor(sensor: Sensor, audio_info: str) -> None:
+        """Update audio out sensor."""
+        sensor.attributes[Attributes.STATE] = States.ON
+        sensor.attributes[Attributes.VALUE] = audio_info
