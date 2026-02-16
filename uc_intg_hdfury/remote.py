@@ -49,7 +49,7 @@ class HDFuryRemote(Remote):
             commands.append(f"set_edidmode_{mode}")
         
         for source in model_config.edid_audio_sources:
-            cmd_id = f"set_edidaudio_{source.replace('.', '')}"
+            cmd_id = f"set_edidaudio_{source}"
             commands.append(cmd_id)
         
         if model_config.edid_slots:
@@ -290,12 +290,12 @@ class HDFuryRemote(Remote):
             items.append(create_ui_text(text="Audio Source", x=0, y=y_pos, size=Size(width=5)))
             y_pos += 1
             for i, source in enumerate(model_config.edid_audio_sources[:5]):
-                label = "5.1" if source == "5.1" else source.title()
-                cmd_id = f"set_edidaudio_{source.replace('.', '')}"
+                label = "5.1" if source == "51" else source.title()
+                cmd_id = f"set_edidaudio_{source}"
                 items.append(create_ui_text(
-                    text=label, 
-                    x=i, 
-                    y=y_pos, 
+                    text=label,
+                    x=i,
+                    y=y_pos,
                     cmd=EntityCommand(cmd_id, {"command": cmd_id})
                 ))
 

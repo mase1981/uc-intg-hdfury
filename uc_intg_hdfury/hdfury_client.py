@@ -81,30 +81,42 @@ class HDFuryClient:
         else:
             return 5.0
 
-    async def send_command(self, command: str, is_retry: bool = False) -> str:
+    async def send_command(self, command: str, is_retry: bool = False, expect_response: bool = True) -> str:
         async with self._lock:
             try:
                 await self._ensure_connection()
-                
+
                 timeout = self._get_command_timeout(command)
-                
+
                 self.log.info(f"HDFuryClient: Sending command '{command}' (timeout: {timeout}s)")
                 self._writer.write(f"{command}\r\n".encode('ascii'))
                 await self._writer.drain()
 
-                response = await asyncio.wait_for(self._reader.readline(), timeout=timeout)
-                decoded = response.decode('ascii').replace('>', '').strip()
-                self._last_activity = asyncio.get_event_loop().time()
-                self.log.info(f"HDFuryClient: Received response for '{command}': '{decoded}'")
-                return decoded
+                try:
+                    response = await asyncio.wait_for(self._reader.readline(), timeout=timeout)
+                    decoded = response.decode('ascii').replace('>', '').strip()
+                    self._last_activity = asyncio.get_event_loop().time()
+                    self.log.info(f"HDFuryClient: Received response for '{command}': '{decoded}'")
+                    return decoded
+                except asyncio.TimeoutError:
+                    if command.startswith("set "):
+                        self.log.debug(f"HDFuryClient: Command '{command}' completed without response (normal for some SET commands)")
+                        self._last_activity = asyncio.get_event_loop().time()
+                        return ""
+                    elif not expect_response:
+                        self.log.debug(f"HDFuryClient: Command '{command}' completed without response")
+                        self._last_activity = asyncio.get_event_loop().time()
+                        return ""
+                    else:
+                        raise
 
             except asyncio.TimeoutError:
                 self.log.warning(f"Command '{command}' timed out after {timeout}s - connection may be stale")
                 await self.disconnect()
-                
+
                 if not is_retry:
                     self.log.info(f"Retrying command '{command}' after timeout")
-                    return await self.send_command(command, is_retry=True)
+                    return await self.send_command(command, is_retry=True, expect_response=expect_response)
                 else:
                     self.log.error(f"Command '{command}' failed on retry after timeout")
                     raise asyncio.TimeoutError(f"Command '{command}' timed out on retry")
@@ -115,7 +127,7 @@ class HDFuryClient:
                     self.log.error(f"HDFuryClient: Command '{command}' failed on retry. Giving up. Error: {e}")
                     raise
                 self.log.warning(f"HDFuryClient: Command '{command}' failed: {e}. Retrying once.")
-                return await self.send_command(command, is_retry=True)
+                return await self.send_command(command, is_retry=True, expect_response=expect_response)
 
             except Exception as e:
                 self.log.error(f"HDFuryClient: An unexpected error occurred for command '{command}': {e}", exc_info=True)
@@ -143,10 +155,7 @@ class HDFuryClient:
         await self.send_command(f"set edidmode {mode}")
 
     async def set_edid_audio(self, source: str):
-        if self.model_config.model_id == "vertex":
-            await self.send_command(f"set edidaudio {source}")
-        else:
-            await self.send_command(f"set edid audio {source}")
+        await self.send_command(f"set edid audio {source}")
 
     async def load_edid_slot(self, slot: str):
         await self.send_command(f"set edid load {slot}")
@@ -284,7 +293,7 @@ class HDFuryClient:
         return response
 
     async def get_device_info(self) -> str:
-        response = await self.send_command("get status")
+        response = await self.send_command("get status rx0")
         return response
 
     async def heartbeat(self) -> bool:
@@ -297,3 +306,133 @@ class HDFuryClient:
         except Exception as e:
             self.log.debug(f"Heartbeat failed: {e}")
             return False
+
+    async def get_current_input(self) -> str | None:
+        try:
+            response = await self.send_command("get insel")
+            if response and "insel" in response:
+                parts = response.split()
+                if len(parts) >= 2:
+                    return parts[1]
+            return None
+        except Exception as e:
+            self.log.debug(f"Failed to get current input: {e}")
+            return None
+
+    async def get_edid_mode(self) -> str | None:
+        try:
+            response = await self.send_command("get edidmode")
+            if response and "edidmode" in response:
+                parts = response.split()
+                if len(parts) >= 2:
+                    return parts[1]
+            return None
+        except Exception as e:
+            self.log.debug(f"Failed to get EDID mode: {e}")
+            return None
+
+    async def get_hdr_mode(self) -> str | None:
+        try:
+            hdrcustom = await self.send_command("get hdrcustom")
+            hdrdisable = await self.send_command("get hdrdisable")
+
+            custom_on = hdrcustom and "on" in hdrcustom.lower()
+            disable_on = hdrdisable and "on" in hdrdisable.lower()
+
+            if disable_on:
+                return "Disabled"
+            elif custom_on:
+                return "Custom"
+            else:
+                return "Auto"
+        except Exception as e:
+            self.log.debug(f"Failed to get HDR mode: {e}")
+            return None
+
+    async def get_hdcp_mode(self) -> str | None:
+        try:
+            response = await self.send_command("get hdcp")
+            if response and "hdcp" in response:
+                parts = response.split()
+                if len(parts) >= 2:
+                    return parts[1].upper()
+            return None
+        except Exception as e:
+            self.log.debug(f"Failed to get HDCP mode: {e}")
+            return None
+
+    async def get_oled_status(self) -> bool | None:
+        try:
+            response = await self.send_command("get oled")
+            if response and "oled" in response:
+                return "on" in response.lower()
+            return None
+        except Exception as e:
+            self.log.debug(f"Failed to get OLED status: {e}")
+            return None
+
+    async def get_autoswitch_status(self) -> bool | None:
+        try:
+            response = await self.send_command("get autosw")
+            if response and "autosw" in response:
+                return "on" in response.lower()
+            return None
+        except Exception as e:
+            self.log.debug(f"Failed to get autoswitch status: {e}")
+            return None
+
+    async def get_earcforce_mode(self) -> str | None:
+        try:
+            response = await self.send_command("get earcforce")
+            if response and "earcforce" in response:
+                parts = response.split()
+                if len(parts) >= 2:
+                    return parts[1].upper()
+            return None
+        except Exception as e:
+            self.log.debug(f"Failed to get eARC force mode: {e}")
+            return None
+
+    async def poll_device_state(self) -> dict:
+        state = {}
+        try:
+            ver = await self.send_command("get ver")
+            if ver and "ver" in ver:
+                parts = ver.split()
+                if len(parts) >= 2:
+                    state["firmware"] = parts[1]
+
+            if self.model_config.input_count > 0:
+                input_val = await self.get_current_input()
+                if input_val is not None:
+                    state["current_input"] = input_val
+
+            if len(self.model_config.edid_modes) > 0:
+                edid = await self.get_edid_mode()
+                if edid:
+                    state["edid_mode"] = edid
+
+            if self.model_config.hdr_custom_support or self.model_config.hdr_disable_support:
+                hdr = await self.get_hdr_mode()
+                if hdr:
+                    state["hdr_mode"] = hdr
+
+            if self.model_config.hdcp_modes:
+                hdcp = await self.get_hdcp_mode()
+                if hdcp:
+                    state["hdcp_mode"] = hdcp
+
+            if self.model_config.oled_support:
+                oled = await self.get_oled_status()
+                if oled is not None:
+                    state["oled_status"] = oled
+
+            if self.model_config.autoswitch_support:
+                autosw = await self.get_autoswitch_status()
+                if autosw is not None:
+                    state["autoswitch_status"] = autosw
+
+        except Exception as e:
+            self.log.error(f"Error polling device state: {e}")
+
+        return state

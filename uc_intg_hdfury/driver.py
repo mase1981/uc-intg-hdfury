@@ -9,6 +9,7 @@ import logging
 import ucapi
 from ucapi import media_player, DeviceStates, api_definitions
 from ucapi.remote import States as RemoteStates
+from ucapi.select import Attributes as SelectAttributes
 from uc_intg_hdfury.device import HDFuryDevice, EVENTS
 from uc_intg_hdfury.config import Devices, HDFuryDeviceConfig
 from uc_intg_hdfury.hdfury_client import HDFuryClient
@@ -99,6 +100,8 @@ async def driver_setup_handler(request: ucapi.SetupDriver) -> ucapi.SetupAction:
         api.available_entities.add(device.remote_entity)
         for sensor_entity in device.sensor_entities:
             api.available_entities.add(sensor_entity)
+        for select_entity in device.select_entities:
+            api.available_entities.add(select_entity)
         device.events.on(EVENTS.UPDATE, on_device_update)
 
         # Start device with retry logic
@@ -218,6 +221,16 @@ def push_device_state(device: HDFuryDevice):
             api.configured_entities.update_attributes(sensor_entity.id, sensor_attributes)
             log.debug(f"Pushed state to sensor {sensor_entity.id}")
 
+    for select_entity in device.select_entities:
+        if api.configured_entities.contains(select_entity.id):
+            select_attributes = {
+                "state": select_entity.attributes.get(SelectAttributes.STATE),
+                "options": select_entity.attributes.get(SelectAttributes.OPTIONS),
+                "current_option": select_entity.attributes.get(SelectAttributes.CURRENT_OPTION),
+            }
+            api.configured_entities.update_attributes(select_entity.id, select_attributes)
+            log.debug(f"Pushed state to select {select_entity.id}")
+
 def add_device(device_config: HDFuryDeviceConfig):
     identifier = device_config.identifier
     if identifier in configured_devices: 
@@ -232,6 +245,8 @@ def add_device(device_config: HDFuryDeviceConfig):
     api.available_entities.add(device.remote_entity)
     for sensor_entity in device.sensor_entities:
         api.available_entities.add(sensor_entity)
+    for select_entity in device.select_entities:
+        api.available_entities.add(select_entity)
     device.events.on(EVENTS.UPDATE, on_device_update)
     configured_devices[identifier] = device
 
