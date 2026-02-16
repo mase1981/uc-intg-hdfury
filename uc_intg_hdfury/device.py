@@ -509,7 +509,14 @@ class HDFuryDevice:
                 self._update_hdcp_mode_sensor(selected_option)
 
             elif select_type == "earcforce":
-                mode = selected_option.lower()
+                earc_map = {
+                    "Auto eARC": "autoearc",
+                    "Manual eARC": "manualearc",
+                    "Manual HDMI": "hdmi",
+                    "Auto ARC": "autoarc",
+                    "Manual ARC": "manualarc",
+                }
+                mode = earc_map.get(selected_option, selected_option.lower())
                 await self.client.set_earc_force(mode)
 
             elif select_type == "arcforce":

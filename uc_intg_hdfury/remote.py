@@ -544,16 +544,31 @@ class HDFuryRemote(Remote):
             y_pos += 2
         
         if model_config.earc_force_modes:
-            items.append(create_ui_text(text="eARC Force", x=0, y=y_pos, size=Size(width=4)))
+            earc_labels = {
+                "autoearc": "Auto eARC",
+                "manualearc": "eARC",
+                "hdmi": "HDMI",
+                "autoarc": "Auto ARC",
+                "manualarc": "ARC",
+                "auto": "Auto",
+                "earc": "eARC",
+            }
+            items.append(create_ui_text(text="eARC/ARC Mode", x=0, y=y_pos, size=Size(width=5)))
             y_pos += 1
-            for i, mode in enumerate(model_config.earc_force_modes[:4]):
+            col = 0
+            for mode in model_config.earc_force_modes:
                 cmd_id = f"set_earcforce_{mode}"
+                label = earc_labels.get(mode, mode.title())
                 items.append(create_ui_text(
-                    text=mode.title(), 
-                    x=i, 
-                    y=y_pos, 
+                    text=label,
+                    x=col,
+                    y=y_pos,
                     cmd=EntityCommand(cmd_id, {"command": cmd_id})
                 ))
+                col += 1
+                if col >= 5:
+                    col = 0
+                    y_pos += 1
 
         return UiPage(page_id="cec_earc", name="CEC/eARC", items=items)
         

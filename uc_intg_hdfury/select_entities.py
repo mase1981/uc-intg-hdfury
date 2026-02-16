@@ -131,7 +131,14 @@ class HDFurySelectEntities:
     @staticmethod
     def _create_earcforce_select(device: HDFuryDevice) -> Select:
         """Create eARC force mode select entity."""
-        options = [mode.upper() for mode in device.model_config.earc_force_modes]
+        earc_labels = {
+            "autoearc": "Auto eARC",
+            "manualearc": "Manual eARC",
+            "hdmi": "Manual HDMI",
+            "autoarc": "Auto ARC",
+            "manualarc": "Manual ARC",
+        }
+        options = [earc_labels.get(mode, mode.upper()) for mode in device.model_config.earc_force_modes]
 
         return Select(
             identifier=f"{device.device_id}-earcforce-select",
