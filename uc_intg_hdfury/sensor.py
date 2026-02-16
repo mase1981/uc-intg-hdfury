@@ -223,6 +223,77 @@ class HDFurySensor:
                 }
             ))
 
+        if model_config.input_count > 0:
+            sensors.append(Sensor(
+                identifier=f"{device_id}-video-input",
+                name=f"{device_name} Video Input",
+                features=[],
+                attributes={
+                    Attributes.STATE: States.UNKNOWN,
+                    Attributes.VALUE: "Unknown",
+                },
+                device_class=DeviceClasses.CUSTOM,
+                options={
+                    Options.CUSTOM_UNIT: "video"
+                }
+            ))
+
+        if model_config.matrix_outputs and model_config.matrix_outputs >= 1:
+            sensors.append(Sensor(
+                identifier=f"{device_id}-video-tx0",
+                name=f"{device_name} Video TX0",
+                features=[],
+                attributes={
+                    Attributes.STATE: States.UNKNOWN,
+                    Attributes.VALUE: "Unknown",
+                },
+                device_class=DeviceClasses.CUSTOM,
+                options={
+                    Options.CUSTOM_UNIT: "video"
+                }
+            ))
+            sensors.append(Sensor(
+                identifier=f"{device_id}-sink-tx0",
+                name=f"{device_name} Sink TX0",
+                features=[],
+                attributes={
+                    Attributes.STATE: States.UNKNOWN,
+                    Attributes.VALUE: "Unknown",
+                },
+                device_class=DeviceClasses.CUSTOM,
+                options={
+                    Options.CUSTOM_UNIT: "sink"
+                }
+            ))
+
+        if model_config.matrix_outputs and model_config.matrix_outputs >= 2:
+            sensors.append(Sensor(
+                identifier=f"{device_id}-video-tx1",
+                name=f"{device_name} Video TX1",
+                features=[],
+                attributes={
+                    Attributes.STATE: States.UNKNOWN,
+                    Attributes.VALUE: "Unknown",
+                },
+                device_class=DeviceClasses.CUSTOM,
+                options={
+                    Options.CUSTOM_UNIT: "video"
+                }
+            ))
+            sensors.append(Sensor(
+                identifier=f"{device_id}-sink-tx1",
+                name=f"{device_name} Sink TX1",
+                features=[],
+                attributes={
+                    Attributes.STATE: States.UNKNOWN,
+                    Attributes.VALUE: "Unknown",
+                },
+                device_class=DeviceClasses.CUSTOM,
+                options={
+                    Options.CUSTOM_UNIT: "sink"
+                }
+            ))
+
         log.info(f"Created {len(sensors)} sensor entities for {device_name}")
         return sensors
 
@@ -303,3 +374,33 @@ class HDFurySensor:
         """Update audio out sensor."""
         sensor.attributes[Attributes.STATE] = States.ON
         sensor.attributes[Attributes.VALUE] = audio_info
+
+    @staticmethod
+    def update_video_input_sensor(sensor: Sensor, video_info: str) -> None:
+        """Update video input sensor."""
+        sensor.attributes[Attributes.STATE] = States.ON
+        sensor.attributes[Attributes.VALUE] = video_info
+
+    @staticmethod
+    def update_video_tx0_sensor(sensor: Sensor, video_info: str) -> None:
+        """Update video TX0 sensor."""
+        sensor.attributes[Attributes.STATE] = States.ON
+        sensor.attributes[Attributes.VALUE] = video_info
+
+    @staticmethod
+    def update_video_tx1_sensor(sensor: Sensor, video_info: str) -> None:
+        """Update video TX1 sensor."""
+        sensor.attributes[Attributes.STATE] = States.ON
+        sensor.attributes[Attributes.VALUE] = video_info
+
+    @staticmethod
+    def update_sink_tx0_sensor(sensor: Sensor, sink_info: str) -> None:
+        """Update sink TX0 sensor."""
+        sensor.attributes[Attributes.STATE] = States.ON
+        sensor.attributes[Attributes.VALUE] = sink_info
+
+    @staticmethod
+    def update_sink_tx1_sensor(sensor: Sensor, sink_info: str) -> None:
+        """Update sink TX1 sensor."""
+        sensor.attributes[Attributes.STATE] = States.ON
+        sensor.attributes[Attributes.VALUE] = sink_info

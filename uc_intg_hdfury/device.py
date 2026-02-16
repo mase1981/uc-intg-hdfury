@@ -135,6 +135,21 @@ class HDFuryDevice:
             if "audio_out" in state:
                 self._update_audio_out_sensor(state["audio_out"])
 
+            if "video_input" in state:
+                self._update_video_input_sensor(state["video_input"])
+
+            if "video_tx0" in state:
+                self._update_video_tx0_sensor(state["video_tx0"])
+
+            if "video_tx1" in state:
+                self._update_video_tx1_sensor(state["video_tx1"])
+
+            if "sink_tx0" in state:
+                self._update_sink_tx0_sensor(state["sink_tx0"])
+
+            if "sink_tx1" in state:
+                self._update_sink_tx1_sensor(state["sink_tx1"])
+
             self.events.emit(EVENTS.UPDATE, self)
 
         except Exception as e:
@@ -632,3 +647,28 @@ class HDFuryDevice:
         """Update audio out sensor."""
         if sensor := self._get_sensor_by_id_suffix("audio-out"):
             HDFurySensor.update_audio_out_sensor(sensor, audio_info)
+
+    def _update_video_input_sensor(self, video_info: str):
+        """Update video input sensor."""
+        if sensor := self._get_sensor_by_id_suffix("video-input"):
+            HDFurySensor.update_video_input_sensor(sensor, video_info)
+
+    def _update_video_tx0_sensor(self, video_info: str):
+        """Update video TX0 sensor."""
+        if sensor := self._get_sensor_by_id_suffix("video-tx0"):
+            HDFurySensor.update_video_tx0_sensor(sensor, video_info)
+
+    def _update_video_tx1_sensor(self, video_info: str):
+        """Update video TX1 sensor."""
+        if sensor := self._get_sensor_by_id_suffix("video-tx1"):
+            HDFurySensor.update_video_tx1_sensor(sensor, video_info)
+
+    def _update_sink_tx0_sensor(self, sink_info: str):
+        """Update sink TX0 sensor."""
+        if sensor := self._get_sensor_by_id_suffix("sink-tx0"):
+            HDFurySensor.update_sink_tx0_sensor(sensor, sink_info)
+
+    def _update_sink_tx1_sensor(self, sink_info: str):
+        """Update sink TX1 sensor."""
+        if sensor := self._get_sensor_by_id_suffix("sink-tx1"):
+            HDFurySensor.update_sink_tx1_sensor(sensor, sink_info)

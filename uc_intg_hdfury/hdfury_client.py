@@ -443,6 +443,70 @@ class HDFuryClient:
             self.log.debug(f"Failed to get audio out: {e}")
             return None
 
+    async def get_video_input(self) -> str | None:
+        try:
+            insel = await self.get_current_input()
+            rx_port = f"rx{insel}" if insel and insel.isdigit() else "rx0"
+            response = await self.send_command(f"get status {rx_port}")
+            if response:
+                prefix = f"{rx_port.upper()}:"
+                if prefix in response:
+                    video_info = response.replace(prefix, "").strip()
+                    if video_info:
+                        return video_info
+            return "No signal"
+        except Exception as e:
+            self.log.debug(f"Failed to get video input: {e}")
+            return None
+
+    async def get_video_tx0(self) -> str | None:
+        try:
+            response = await self.send_command("get status tx0")
+            if response and "TX0:" in response:
+                video_info = response.replace("TX0:", "").strip()
+                if video_info:
+                    return video_info
+            return "No signal"
+        except Exception as e:
+            self.log.debug(f"Failed to get video TX0: {e}")
+            return None
+
+    async def get_video_tx1(self) -> str | None:
+        try:
+            response = await self.send_command("get status tx1")
+            if response and "TX1:" in response:
+                video_info = response.replace("TX1:", "").strip()
+                if video_info:
+                    return video_info
+            return "No signal"
+        except Exception as e:
+            self.log.debug(f"Failed to get video TX1: {e}")
+            return None
+
+    async def get_sink_tx0(self) -> str | None:
+        try:
+            response = await self.send_command("get status tx0sink")
+            if response and "TX0SINK:" in response:
+                sink_info = response.replace("TX0SINK:", "").strip()
+                if sink_info:
+                    return sink_info
+            return "Not connected"
+        except Exception as e:
+            self.log.debug(f"Failed to get sink TX0: {e}")
+            return None
+
+    async def get_sink_tx1(self) -> str | None:
+        try:
+            response = await self.send_command("get status tx1sink")
+            if response and "TX1SINK:" in response:
+                sink_info = response.replace("TX1SINK:", "").strip()
+                if sink_info:
+                    return sink_info
+            return "Not connected"
+        except Exception as e:
+            self.log.debug(f"Failed to get sink TX1: {e}")
+            return None
+
     async def poll_device_state(self) -> dict:
         state = {}
         try:
@@ -496,6 +560,27 @@ class HDFuryClient:
                 audio_out = await self.get_audio_out()
                 if audio_out:
                     state["audio_out"] = audio_out
+
+            if self.model_config.input_count > 0:
+                video_input = await self.get_video_input()
+                if video_input:
+                    state["video_input"] = video_input
+
+            if self.model_config.matrix_outputs and self.model_config.matrix_outputs >= 1:
+                video_tx0 = await self.get_video_tx0()
+                if video_tx0:
+                    state["video_tx0"] = video_tx0
+                sink_tx0 = await self.get_sink_tx0()
+                if sink_tx0:
+                    state["sink_tx0"] = sink_tx0
+
+            if self.model_config.matrix_outputs and self.model_config.matrix_outputs >= 2:
+                video_tx1 = await self.get_video_tx1()
+                if video_tx1:
+                    state["video_tx1"] = video_tx1
+                sink_tx1 = await self.get_sink_tx1()
+                if sink_tx1:
+                    state["sink_tx1"] = sink_tx1
 
         except Exception as e:
             self.log.error(f"Error polling device state: {e}")
