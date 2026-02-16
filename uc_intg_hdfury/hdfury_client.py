@@ -203,10 +203,10 @@ class HDFuryClient:
         await self.send_command(f"set cec {'on' if state else 'off'}")
 
     async def set_arc_force(self, mode: str):
-        await self.send_command(f"set arcforce {mode}", expect_response=False)
+        await self.send_command(f"#vrroom set arcforce {mode}", expect_response=False)
 
     async def set_earc_force(self, mode: str):
-        await self.send_command(f"set earcforce {mode}", expect_response=False)
+        await self.send_command(f"#vrroom set earcforce {mode}", expect_response=False)
 
     async def set_oled(self, state: bool):
         await self.send_command(f"set oled {'on' if state else 'off'}")
