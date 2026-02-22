@@ -1,6 +1,6 @@
 {
     "driver_id": "uc-intg-hdfury",
-    "version": "0.6.1",
+    "version": "0.6.2",
     "min_core_api": "0.5.1",
     "name": {
         "en": "HDFury Controls"

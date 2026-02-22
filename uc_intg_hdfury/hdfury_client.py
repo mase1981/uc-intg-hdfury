@@ -509,80 +509,125 @@ class HDFuryClient:
 
     async def poll_device_state(self) -> dict:
         state = {}
+
         try:
             ver = await self.send_command("get ver")
             if ver and "ver" in ver:
                 parts = ver.split()
                 if len(parts) >= 2:
                     state["firmware"] = parts[1]
+        except Exception as e:
+            self.log.debug(f"Failed to get firmware version: {e}")
 
-            if self.model_config.input_count > 0:
+        if self.model_config.input_count > 0:
+            try:
                 input_val = await self.get_current_input()
                 if input_val is not None:
                     state["current_input"] = input_val
+            except Exception as e:
+                self.log.debug(f"Failed to get current input: {e}")
 
-            if len(self.model_config.edid_modes) > 0:
+        if len(self.model_config.edid_modes) > 0:
+            try:
                 edid = await self.get_edid_mode()
                 if edid:
                     state["edid_mode"] = edid
+            except Exception as e:
+                self.log.debug(f"Failed to get EDID mode: {e}")
 
-            if self.model_config.hdr_custom_support or self.model_config.hdr_disable_support:
+        if self.model_config.hdr_custom_support or self.model_config.hdr_disable_support:
+            try:
                 hdr = await self.get_hdr_mode()
                 if hdr:
                     state["hdr_mode"] = hdr
+            except Exception as e:
+                self.log.debug(f"Failed to get HDR mode: {e}")
 
-            if self.model_config.hdcp_modes:
+        if self.model_config.hdcp_modes:
+            try:
                 hdcp = await self.get_hdcp_mode()
                 if hdcp:
                     state["hdcp_mode"] = hdcp
+            except Exception as e:
+                self.log.debug(f"Failed to get HDCP mode: {e}")
 
-            if self.model_config.oled_support:
+        if self.model_config.oled_support:
+            try:
                 oled = await self.get_oled_status()
                 if oled is not None:
                     state["oled_status"] = oled
+            except Exception as e:
+                self.log.debug(f"Failed to get OLED status: {e}")
 
-            if self.model_config.autoswitch_support:
+        if self.model_config.autoswitch_support:
+            try:
                 autosw = await self.get_autoswitch_status()
                 if autosw is not None:
                     state["autoswitch_status"] = autosw
+            except Exception as e:
+                self.log.debug(f"Failed to get autoswitch status: {e}")
 
-            if self.model_config.matrix_outputs and self.model_config.matrix_outputs >= 1:
+        if self.model_config.matrix_outputs and self.model_config.matrix_outputs >= 1:
+            try:
                 audio_tx0 = await self.get_audio_tx0()
                 if audio_tx0:
                     state["audio_tx0"] = audio_tx0
+            except Exception as e:
+                self.log.debug(f"Failed to get audio TX0: {e}")
 
-            if self.model_config.matrix_outputs and self.model_config.matrix_outputs >= 2:
+        if self.model_config.matrix_outputs and self.model_config.matrix_outputs >= 2:
+            try:
                 audio_tx1 = await self.get_audio_tx1()
                 if audio_tx1:
                     state["audio_tx1"] = audio_tx1
+            except Exception as e:
+                self.log.debug(f"Failed to get audio TX1: {e}")
 
-            if self.model_config.model_id in ["vrroom", "vertex2", "vertex", "diva", "maestro"]:
+        if self.model_config.model_id in ["vrroom", "vertex2", "vertex", "diva", "maestro"]:
+            try:
                 audio_out = await self.get_audio_out()
                 if audio_out:
                     state["audio_out"] = audio_out
+            except Exception as e:
+                self.log.debug(f"Failed to get audio out: {e}")
 
-            if self.model_config.input_count > 0:
+        if self.model_config.input_count > 0:
+            try:
                 video_input = await self.get_video_input()
                 if video_input:
                     state["video_input"] = video_input
+            except Exception as e:
+                self.log.debug(f"Failed to get video input: {e}")
 
-            if self.model_config.matrix_outputs and self.model_config.matrix_outputs >= 1:
+        if self.model_config.matrix_outputs and self.model_config.matrix_outputs >= 1:
+            try:
                 video_tx0 = await self.get_video_tx0()
                 if video_tx0:
                     state["video_tx0"] = video_tx0
+            except Exception as e:
+                self.log.debug(f"Failed to get video TX0: {e}")
+
+            try:
                 sink_tx0 = await self.get_sink_tx0()
                 if sink_tx0:
                     state["sink_tx0"] = sink_tx0
+            except Exception as e:
+                self.log.debug(f"Failed to get sink TX0: {e}")
 
-            if self.model_config.matrix_outputs and self.model_config.matrix_outputs >= 2:
+        if self.model_config.matrix_outputs and self.model_config.matrix_outputs >= 2:
+            try:
                 video_tx1 = await self.get_video_tx1()
                 if video_tx1:
                     state["video_tx1"] = video_tx1
+            except Exception as e:
+                self.log.debug(f"Failed to get video TX1: {e}")
+
+            try:
                 sink_tx1 = await self.get_sink_tx1()
                 if sink_tx1:
                     state["sink_tx1"] = sink_tx1
+            except Exception as e:
+                self.log.debug(f"Failed to get sink TX1: {e}")
 
-        except Exception as e:
-            self.log.error(f"Error polling device state: {e}")
-
+        self.log.info(f"Poll completed, got {len(state)} values")
         return state

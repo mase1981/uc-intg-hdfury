@@ -73,10 +73,10 @@ class HDFuryDevice:
 
                 self._update_connection_sensor(True)
 
-                asyncio.create_task(self._poll_initial_state())
-
                 if not self._keep_alive_task or self._keep_alive_task.done():
                     self._keep_alive_task = asyncio.create_task(self._keep_alive_loop())
+
+                await self._poll_initial_state()
             else:
                 raise Exception("Failed to establish connection")
 
@@ -447,6 +447,7 @@ class HDFuryDevice:
                                     self.media_title = "Ready"
                                     self._last_successful_command = current_time
                                     self._update_connection_sensor(True)
+                                    await self._poll_initial_state()
                                     self.events.emit(EVENTS.UPDATE, self)
                                     log.info(f"HDFuryDevice: Reconnected successfully to {self.host}")
                                     retry_attempt = 0
@@ -507,7 +508,7 @@ class HDFuryDevice:
                     self._last_successful_command = asyncio.get_event_loop().time()
                     self._update_connection_sensor(True)
 
-                    asyncio.create_task(self._poll_initial_state())
+                    await self._poll_initial_state()
 
                     self.events.emit(EVENTS.UPDATE, self)
                     log.info(f"HDFuryDevice: Successfully reconnected to {self.host} after reboot")
