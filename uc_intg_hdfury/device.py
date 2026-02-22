@@ -374,6 +374,8 @@ class HDFuryDevice:
 
             elif command == "reboot_device":
                 await self.client.reboot()
+                asyncio.create_task(self._handle_reboot_reconnection())
+                return api_definitions.StatusCodes.OK
             elif command.startswith("factoryreset_"):
                 mode = int(command.replace("factoryreset_", ""))
                 await self.client.factory_reset(mode)
@@ -475,6 +477,52 @@ class HDFuryDevice:
                     await asyncio.sleep(60)
                 except asyncio.CancelledError:
                     break
+
+    async def _handle_reboot_reconnection(self):
+        log.info(f"HDFuryDevice: Reboot command sent, initiating reconnection sequence for {self.host}")
+
+        await self.client.disconnect()
+
+        self.state = media_player.States.UNAVAILABLE
+        self.media_title = "Rebooting..."
+        self._update_connection_sensor(False)
+        self.events.emit(EVENTS.UPDATE, self)
+
+        reboot_wait_time = 15
+        log.info(f"HDFuryDevice: Waiting {reboot_wait_time}s for device to reboot...")
+        await asyncio.sleep(reboot_wait_time)
+
+        reconnect_attempts = 12
+        reconnect_interval = 5
+
+        for attempt in range(1, reconnect_attempts + 1):
+            log.info(f"HDFuryDevice: Reconnection attempt {attempt}/{reconnect_attempts} for {self.host}")
+
+            try:
+                await self.client.connect()
+
+                if self.client.is_connected():
+                    self.state = media_player.States.ON
+                    self.media_title = "Ready"
+                    self._last_successful_command = asyncio.get_event_loop().time()
+                    self._update_connection_sensor(True)
+
+                    asyncio.create_task(self._poll_initial_state())
+
+                    self.events.emit(EVENTS.UPDATE, self)
+                    log.info(f"HDFuryDevice: Successfully reconnected to {self.host} after reboot")
+                    return
+
+            except Exception as e:
+                log.debug(f"HDFuryDevice: Reconnection attempt {attempt} failed: {e}")
+
+            if attempt < reconnect_attempts:
+                log.debug(f"HDFuryDevice: Waiting {reconnect_interval}s before next attempt...")
+                await asyncio.sleep(reconnect_interval)
+
+        log.warning(f"HDFuryDevice: Failed to reconnect to {self.host} after {reconnect_attempts} attempts. Device may need more time or manual intervention.")
+        self.media_title = "Connection Lost"
+        self.events.emit(EVENTS.UPDATE, self)
 
     async def handle_remote_command(self, entity, cmd_id, kwargs):
         if kwargs is None:
