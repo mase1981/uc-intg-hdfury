@@ -445,15 +445,11 @@ class HDFuryClient:
 
     async def get_video_input(self) -> str | None:
         try:
-            insel = await self.get_current_input()
-            rx_port = f"rx{insel}" if insel and insel.isdigit() else "rx0"
-            response = await self.send_command(f"get status {rx_port}")
-            if response:
-                prefix = f"{rx_port.upper()}:"
-                if prefix in response:
-                    video_info = response.replace(prefix, "").strip()
-                    if video_info:
-                        return video_info
+            response = await self.send_command("get status rx0")
+            if response and "RX0:" in response:
+                video_info = response.replace("RX0:", "").strip()
+                if video_info:
+                    return video_info
             return "No signal"
         except Exception as e:
             self.log.debug(f"Failed to get video input: {e}")

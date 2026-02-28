@@ -68,3 +68,9 @@ venv.bak/
 # Local Files
 config.json
 config/
+test-config/
+
+# Testing files (keep local only, never push to repository)
+tests/
+.claude/
+tmpclaude-*

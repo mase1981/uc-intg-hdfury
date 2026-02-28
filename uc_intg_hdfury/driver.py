@@ -21,11 +21,8 @@ loop = asyncio.get_event_loop()
 api = ucapi.api.IntegrationAPI(loop=loop)
 configured_devices: dict[str, HDFuryDevice] = {}
 devices_config: Devices | None = None
-entities_ready: bool = False
-initialization_lock: asyncio.Lock = asyncio.Lock()
 
 async def driver_setup_handler(request: ucapi.SetupDriver) -> ucapi.SetupAction:
-    global entities_ready
     if isinstance(request, ucapi.DriverSetupRequest):
         return ucapi.RequestUserInput(
             title={"en": "Select HDFury Device Model"},
@@ -53,7 +50,7 @@ async def driver_setup_handler(request: ucapi.SetupDriver) -> ucapi.SetupAction:
     if isinstance(request, ucapi.UserDataResponse):
         user_input = request.input_values
         model_id = user_input.get("model", "vrroom")
-        
+
         if "host" not in user_input:
             model_config = get_model_config(model_id)
             return ucapi.RequestUserInput(
@@ -64,38 +61,33 @@ async def driver_setup_handler(request: ucapi.SetupDriver) -> ucapi.SetupAction:
                     {"id": "port", "label": {"en": "Port"}, "field": {"number": {"value": model_config.default_port}}}
                 ]
             )
-        
+
         host = user_input.get("host")
         port = int(user_input.get("port", 2222))
         if not host:
             return ucapi.SetupError("IP address is required.")
-        
+
         identifier = f"hdfury-{host.replace('.', '-')}"
         if identifier in configured_devices:
             return ucapi.SetupComplete()
 
         model_config = get_model_config(model_id)
-        
-        # Test connection with temp client
+
         try:
             log.info(f"Testing connection to {host}:{port}")
             temp_client = HDFuryClient(host, port, log, model_config)
             await temp_client.connect()
             await temp_client.disconnect()
-            
-            # CRITICAL FIX: Wait for device to fully close connection
-            # HDFury devices need time between connection close and reopen
             log.info("Connection test successful, waiting for device to reset...")
             await asyncio.sleep(2.0)
-            
+
         except Exception as e:
             log.error(f"Connection test failed: {e}")
             return ucapi.SetupError(f"Could not connect to device: {e}")
 
-        # Create actual device
         log.info(f"Creating device for {host}")
         device = HDFuryDevice(host, port, model_config)
-        
+
         api.available_entities.add(device.media_player_entity)
         api.available_entities.add(device.remote_entity)
         for sensor_entity in device.sensor_entities:
@@ -104,18 +96,15 @@ async def driver_setup_handler(request: ucapi.SetupDriver) -> ucapi.SetupAction:
             api.available_entities.add(select_entity)
         device.events.on(EVENTS.UPDATE, on_device_update)
 
-        # Start device with retry logic
         try:
             await asyncio.wait_for(device.start(), timeout=15.0)
             if device.state != media_player.States.ON:
                 log.warning(f"Device state is {device.state}, but continuing setup")
-                # Don't fail setup - device might connect later
-            
+
             configured_devices[identifier] = device
             new_config = HDFuryDeviceConfig(identifier, device.name, host, port, model_id)
             devices_config.add(new_config)
-            entities_ready = True
-            log.info(f"Device {identifier} added and entities ready")
+            log.info(f"Device {identifier} added successfully")
             return ucapi.SetupComplete()
 
         except asyncio.TimeoutError:
@@ -123,31 +112,28 @@ async def driver_setup_handler(request: ucapi.SetupDriver) -> ucapi.SetupAction:
             configured_devices[identifier] = device
             new_config = HDFuryDeviceConfig(identifier, device.name, host, port, model_id)
             devices_config.add(new_config)
-            entities_ready = True
-            log.info(f"Device {identifier} added (timeout) but entities ready")
+            log.info(f"Device {identifier} added (timeout occurred)")
             return ucapi.SetupComplete()
-            
+
         except Exception as e:
             log.error(f"Setup error: {e}", exc_info=True)
             return ucapi.SetupError(f"Setup failed: {e}")
-            
+
     return ucapi.SetupError()
 
 @api.listens_to(api_definitions.Events.CONNECT)
 async def on_connect() -> None:
-    global entities_ready
-
-    log.info("Remote Two connected")
+    log.info("Remote connected")
 
     if devices_config:
         devices_config.load()
         log.debug("Configuration reloaded from disk")
 
-    if entities_ready:
-        log.info("Entities ready, setting driver state to CONNECTED")
+    if configured_devices:
+        log.info(f"Devices configured ({len(configured_devices)}), setting driver state to CONNECTED")
         await api.set_device_state(DeviceStates.CONNECTED)
     else:
-        log.warning("Entities not ready on connect, may need manual device configuration")
+        log.info("No devices configured yet")
         await api.set_device_state(DeviceStates.DISCONNECTED)
 
 @api.listens_to(api_definitions.Events.DISCONNECT)
@@ -156,30 +142,35 @@ async def on_disconnect() -> None:
 
 @api.listens_to(api_definitions.Events.SUBSCRIBE_ENTITIES)
 async def on_subscribe_entities(entity_ids: list[str]):
-    global entities_ready
-
     log.info(f"Entities subscribed: {entity_ids}")
 
-    if not entities_ready:
-        log.error("RACE CONDITION DETECTED: Subscription before entities ready!")
-        log.warning("Entities not fully initialized yet, waiting for initialization...")
-        return
+    device_ids = set()
+    for eid in entity_ids:
+        parts = eid.replace('-remote', '').replace('-connection', '').replace('-firmware', '')
+        parts = parts.replace('-current-input', '').replace('-edid-mode', '').replace('-hdr-mode', '')
+        parts = parts.replace('-hdcp-mode', '').replace('-oled-status', '').replace('-autoswitch-status', '')
+        parts = parts.replace('-audio-tx0', '').replace('-audio-tx1', '').replace('-audio-out', '')
+        parts = parts.replace('-video-input', '').replace('-video-tx0', '').replace('-video-tx1', '')
+        parts = parts.replace('-sink-tx0', '').replace('-sink-tx1', '').replace('-input-select', '')
+        parts = parts.replace('-edid-mode-select', '').replace('-edid-audio-select', '').replace('-hdcp-select', '')
+        parts = parts.replace('-earcforce-select', '').replace('-hdr-select', '').replace('-cecla-select', '')
+        parts = parts.replace('-arcforce-select', '').replace('-colorspace', '').replace('-deep-color', '')
+        device_ids.add(parts)
 
-    all_device_ids = { eid.split('.')[-1].split('-remote')[0] for eid in entity_ids }
-
-    for identifier in all_device_ids:
+    for identifier in device_ids:
         if identifier in configured_devices:
             device = configured_devices[identifier]
-            log.info(f"Entity subscription for {identifier}, checking connection...")
+            log.info(f"Processing subscription for device {identifier}")
 
-            if device.client.is_connected():
-                log.info(f"Device {identifier} already connected")
-            else:
-                log.info(f"Starting connection for {identifier}")
+            if not device.client.is_connected():
+                log.info(f"Device {identifier} not connected, starting connection...")
                 try:
                     await device.start()
+                    log.info(f"Device {identifier} connected successfully")
                 except Exception as e:
-                    log.error(f"Failed to start device {identifier}: {e}")
+                    log.error(f"Failed to connect device {identifier}: {e}")
+            else:
+                log.info(f"Device {identifier} already connected")
 
             push_device_state(device)
 
@@ -233,14 +224,14 @@ def push_device_state(device: HDFuryDevice):
 
 def add_device(device_config: HDFuryDeviceConfig):
     identifier = device_config.identifier
-    if identifier in configured_devices: 
+    if identifier in configured_devices:
         log.info(f"Device {identifier} already configured, skipping")
         return
 
     log.info(f"Adding device from config: {identifier}")
     model_config = get_model_config(device_config.model_id)
     device = HDFuryDevice(device_config.host, device_config.port, model_config)
-    
+
     api.available_entities.add(device.media_player_entity)
     api.available_entities.add(device.remote_entity)
     for sensor_entity in device.sensor_entities:
@@ -256,32 +247,19 @@ async def cleanup_on_shutdown():
         await asyncio.gather(*[d.stop() for d in configured_devices.values()], return_exceptions=True)
 
 async def main():
-    global devices_config, entities_ready
+    global devices_config
     log.info("Starting HDFury driver...")
 
     devices_config = Devices(api.config_dir_path, add_device, None)
     for device_config in devices_config.all():
         add_device(device_config)
 
+    log.info(f"Loaded {len(configured_devices)} device(s) from config")
+
     await api.init(driver_path="driver.json", setup_handler=driver_setup_handler)
 
-    if configured_devices:
-        log.info(f"Pre-configuring {len(configured_devices)} device(s) before UC Remote connection...")
+    log.info("HDFury integration initialized and ready for connections")
 
-        for i, device in enumerate(configured_devices.values()):
-            if i > 0:
-                await asyncio.sleep(1.0)
-            try:
-                await device.start()
-            except Exception as e:
-                log.error(f"Failed to start device: {e}")
-
-        entities_ready = True
-        log.info(f"HDFury integration ready - {len(configured_devices)} device(s) configured and entities ready")
-    else:
-        entities_ready = True
-        log.info("No devices configured, but marking entities as ready")
-    
 if __name__ == "__main__":
     try:
         loop.run_until_complete(main())
