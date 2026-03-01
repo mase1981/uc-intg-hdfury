@@ -1,638 +1,491 @@
 """
-HDFury Integration for Unfolded Circle Remote Two/3.
+HDFury Remote entity.
 
-:copyright: (c) 2025 by Meir Miyara.
+:copyright: (c) 2026 by Meir Miyara.
 :license: MPL-2.0, see LICENSE for more details.
 """
+
 from __future__ import annotations
-from typing import TYPE_CHECKING
-from ucapi import Remote
-from ucapi.remote import States
-from ucapi.ui import UiPage, Size, create_ui_text, EntityCommand
+
+import logging
+from typing import TYPE_CHECKING, Any
+
+from ucapi import StatusCodes
+from ucapi.remote import Attributes, Commands, Remote, States
+from ucapi.ui import EntityCommand, Size, UiPage, create_ui_text
 
 if TYPE_CHECKING:
+    from uc_intg_hdfury.config import HDFuryConfig
     from uc_intg_hdfury.device import HDFuryDevice
 
+_LOG = logging.getLogger(__name__)
+
+
 class HDFuryRemote(Remote):
-    def __init__(self, device: HDFuryDevice):
+    """HDFury remote entity with UI pages."""
+
+    def __init__(self, config: HDFuryConfig, device: HDFuryDevice):
         self._device = device
-        
+        self._config = config
+
         ui_pages = self._build_ui_pages()
         simple_commands = self._build_simple_commands()
-        
+
         super().__init__(
-            identifier=f"{device.device_id}-remote",
-            name=f"{device.name} Controls",
-            features=[],
-            attributes={"state": States.ON},
+            f"remote.{config.identifier}",
+            config.name,
+            [],
+            {Attributes.STATE: States.ON},
             simple_commands=simple_commands,
-            cmd_handler=self._device.handle_remote_command,
-            ui_pages=ui_pages
+            cmd_handler=self._handle_command,
+            ui_pages=ui_pages,
         )
 
+    async def _handle_command(
+        self, entity: Remote, cmd_id: str, params: dict[str, Any] | None
+    ) -> StatusCodes:
+        """Handle remote commands."""
+        if cmd_id == Commands.SEND_CMD:
+            if not params or "command" not in params:
+                return StatusCodes.BAD_REQUEST
+
+            command = params["command"]
+            _LOG.info("[%s] Command: %s", self._device.log_id, command)
+
+            success = await self._execute_command(command)
+            return StatusCodes.OK if success else StatusCodes.SERVER_ERROR
+
+        elif cmd_id == Commands.SEND_CMD_SEQUENCE:
+            if not params or "sequence" not in params:
+                return StatusCodes.BAD_REQUEST
+
+            for command in params["sequence"]:
+                if not await self._execute_command(command):
+                    return StatusCodes.SERVER_ERROR
+            return StatusCodes.OK
+
+        return StatusCodes.NOT_IMPLEMENTED
+
+    async def _execute_command(self, command: str) -> bool:
+        """Execute a single command on the device."""
+        if command.startswith("set_source_"):
+            source = command.replace("set_source_", "").replace("_", " ")
+            return await self._device.set_source(source)
+
+        if command.startswith("set_edidmode_"):
+            mode = command.replace("set_edidmode_", "")
+            return await self._device.set_edid_mode(mode)
+
+        if command.startswith("set_hdcp_"):
+            mode = command.replace("set_hdcp_", "")
+            return await self._device.set_hdcp_mode(mode)
+
+        if command == "set_hdrcustom_on":
+            return await self._device.set_hdr_custom(True)
+        if command == "set_hdrcustom_off":
+            return await self._device.set_hdr_custom(False)
+
+        if command == "set_hdrdisable_on":
+            return await self._device.set_hdr_disable(True)
+        if command == "set_hdrdisable_off":
+            return await self._device.set_hdr_disable(False)
+
+        if command == "set_cec_on":
+            return await self._device.set_cec(True)
+        if command == "set_cec_off":
+            return await self._device.set_cec(False)
+
+        if command.startswith("set_earcforce_"):
+            mode = command.replace("set_earcforce_", "")
+            return await self._device.set_earc_force(mode)
+
+        if command.startswith("set_arcforce_"):
+            mode = command.replace("set_arcforce_", "")
+            return await self._device.set_arc_force(mode)
+
+        if command == "set_oled_on":
+            return await self._device.set_oled(True)
+        if command == "set_oled_off":
+            return await self._device.set_oled(False)
+
+        if command == "set_autosw_on":
+            return await self._device.set_autoswitch(True)
+        if command == "set_autosw_off":
+            return await self._device.set_autoswitch(False)
+
+        if command.startswith("set_scalemode_"):
+            mode = command.replace("set_scalemode_", "")
+            return await self._device.set_scale_mode(mode)
+
+        if command.startswith("set_colorspace_"):
+            mode = command.replace("set_colorspace_", "")
+            return await self._device.set_color_space(mode)
+
+        if command.startswith("set_deepcolor_"):
+            mode = command.replace("set_deepcolor_", "")
+            return await self._device.set_deep_color(mode)
+
+        if command.startswith("set_edidaudio_"):
+            source = command.replace("set_edidaudio_", "")
+            return await self._device.set_edid_audio(source)
+
+        if command.startswith("set_audiomode_"):
+            mode = command.replace("set_audiomode_", "")
+            return await self._device.set_audio_mode(mode)
+
+        if command.startswith("set_ledmode_"):
+            mode = command.replace("set_ledmode_", "")
+            return await self._device.set_led_mode(mode)
+
+        if command.startswith("set_outres_"):
+            res = command.replace("set_outres_", "")
+            return await self._device.set_output_resolution(res)
+
+        if command == "hotplug":
+            return await self._device.hotplug()
+
+        if command == "reboot_device":
+            return await self._device.reboot()
+
+        return await self._device.send_command(f"set {command}")
+
     def _build_simple_commands(self) -> list[str]:
+        """Build list of simple commands based on model capabilities."""
         commands = []
-        model_config = self._device.model_config
-        
-        if model_config.input_count > 0:
-            for source in self._device.source_list:
-                cmd_id = f"set_source_{source.replace(' ', '_')}"
-                commands.append(cmd_id)
-        
-        if model_config.matrix_outputs:
-            for output_num in range(model_config.matrix_outputs):
-                for source in self._device.source_list:
-                    cmd_id = f"route_tx{output_num}_{source.replace(' ', '_')}"
-                    commands.append(cmd_id)
-        
-        for mode in model_config.edid_modes:
+        model = self._device.model_config
+
+        for source in self._device.source_list:
+            commands.append(f"set_source_{source.replace(' ', '_')}")
+
+        for mode in model.edid_modes:
             commands.append(f"set_edidmode_{mode}")
-        
-        for source in model_config.edid_audio_sources:
-            cmd_id = f"set_edidaudio_{source}"
-            commands.append(cmd_id)
-        
-        if model_config.edid_slots:
-            for slot in range(1, model_config.edid_slots + 1):
-                commands.append(f"load_edid_slot_{slot}")
-                commands.append(f"save_edid_slot_{slot}")
-        
-        if model_config.color_space_modes:
-            for mode in model_config.color_space_modes:
-                commands.append(f"set_colorspace_{mode}")
-        
-        if model_config.deep_color_modes:
-            for mode in model_config.deep_color_modes:
-                commands.append(f"set_deepcolor_{mode}")
-        
-        if model_config.output_resolutions:
-            for res in model_config.output_resolutions:
-                commands.append(f"set_resolution_{res}")
-        
-        if model_config.scale_modes:
-            for mode in model_config.scale_modes:
-                commands.append(f"set_scalemode_{mode}")
-        
-        if model_config.audio_modes:
-            for mode in model_config.audio_modes:
-                commands.append(f"set_audiomode_{mode}")
-        
-        if model_config.audio_delay_support:
-            commands.extend([
-                "audio_delay_plus",
-                "audio_delay_minus",
-                "audio_delay_reset"
-            ])
-        
-        if model_config.led_modes:
-            for mode_id in model_config.led_modes.keys():
-                commands.append(f"set_ledprofilevideo_{mode_id}")
-        
-        if model_config.led_brightness_support:
-            commands.extend([
-                "set_led_brightness_25",
-                "set_led_brightness_50",
-                "set_led_brightness_75",
-                "set_led_brightness_100"
-            ])
-        
-        if model_config.hdr_custom_support:
-            commands.extend([
-                "set_hdrcustom_on",
-                "set_hdrcustom_off"
-            ])
-        
-        if model_config.hdr_disable_support:
-            commands.extend([
-                "set_hdrdisable_on",
-                "set_hdrdisable_off"
-            ])
-        
-        if model_config.cec_support:
-            commands.extend([
-                "set_cec_on",
-                "set_cec_off"
-            ])
-        
-        if model_config.arc_force_modes:
-            for mode in model_config.arc_force_modes:
-                commands.append(f"set_arcforce_{mode}")
-        
-        for mode in model_config.earc_force_modes:
+
+        for mode in model.hdcp_modes:
+            commands.append(f"set_hdcp_{'14' if mode == '1.4' else mode}")
+
+        if model.hdr_custom_support:
+            commands.extend(["set_hdrcustom_on", "set_hdrcustom_off"])
+
+        if model.hdr_disable_support:
+            commands.extend(["set_hdrdisable_on", "set_hdrdisable_off"])
+
+        if model.cec_support:
+            commands.extend(["set_cec_on", "set_cec_off"])
+
+        for mode in model.earc_force_modes:
             commands.append(f"set_earcforce_{mode}")
-        
-        if model_config.oled_support:
-            commands.extend([
-                "set_oled_on",
-                "set_oled_off"
-            ])
-        
-        if model_config.autoswitch_support:
-            commands.extend([
-                "set_autosw_on",
-                "set_autosw_off"
-            ])
-        
-        for mode in model_config.hdcp_modes:
-            cmd_id = f"set_hdcp_{'14' if mode == '1.4' else mode}"
-            commands.append(cmd_id)
 
-        if model_config.matrix_outputs:
-            for i in range(model_config.matrix_outputs):
-                commands.extend([
-                    f"mute_tx{i}audio_on",
-                    f"mute_tx{i}audio_off",
-                    f"set_tx{i}plus5_on",
-                    f"set_tx{i}plus5_off"
-                ])
+        if model.arc_force_modes:
+            for mode in model.arc_force_modes:
+                commands.append(f"set_arcforce_{mode}")
 
-        if model_config.model_id in ["vrroom", "maestro", "diva"]:
-            for val in [-30, -20, -10, 0, 10]:
-                commands.append(f"set_analogvolume_{val}")
-            for val in [-10, -5, 0, 5, 10]:
-                commands.append(f"set_analogbass_{val}")
-                commands.append(f"set_analogtreble_{val}")
+        if model.oled_support:
+            commands.extend(["set_oled_on", "set_oled_off"])
 
-        if model_config.input_count > 0:
-            for i in range(model_config.input_count):
-                commands.extend([
-                    f"set_htpcmode{i}_on",
-                    f"set_htpcmode{i}_off"
-                ])
+        if model.autoswitch_support:
+            commands.extend(["set_autosw_on", "set_autosw_off"])
 
-        if model_config.oled_support:
-            for page in range(5):
-                commands.append(f"set_oledpage_{page}")
-            for fade in [0, 30, 60, 120, 255]:
-                commands.append(f"set_oledfade_{fade}")
+        if model.scale_modes:
+            for mode in model.scale_modes:
+                commands.append(f"set_scalemode_{mode}")
 
-        if model_config.cec_support:
-            commands.extend([
-                "set_cecla_video",
-                "set_cecla_audio"
-            ])
+        if model.color_space_modes:
+            for mode in model.color_space_modes:
+                commands.append(f"set_colorspace_{mode}")
 
-        if model_config.model_id in ["vrroom", "vertex2", "diva"]:
-            commands.extend([
-                "set_avicustom_on",
-                "set_avicustom_off",
-                "set_avidisable_on",
-                "set_avidisable_off"
-            ])
+        if model.deep_color_modes:
+            for mode in model.deep_color_modes:
+                commands.append(f"set_deepcolor_{mode}")
 
-        commands.extend([
-            "reboot_device",
-            "hotplug",
-            "factoryreset_1",
-            "factoryreset_2",
-            "factoryreset_3",
-            "get_firmware_version",
-            "get_device_info"
-        ])
+        if model.edid_audio_sources:
+            for src in model.edid_audio_sources:
+                commands.append(f"set_edidaudio_{src}")
+
+        if model.audio_modes:
+            for mode in model.audio_modes:
+                commands.append(f"set_audiomode_{mode}")
+
+        if model.led_modes:
+            for mode_id in model.led_modes:
+                commands.append(f"set_ledmode_{mode_id}")
+
+        if model.output_resolutions:
+            for res in model.output_resolutions:
+                commands.append(f"set_outres_{res}")
+
+        commands.extend(["hotplug", "reboot_device"])
 
         return commands
 
     def _build_ui_pages(self) -> list[UiPage]:
+        """Build UI pages based on model capabilities."""
         pages = []
-        model_config = self._device.model_config
-        
-        if model_config.input_count > 0:
-            pages.append(self._create_sources_page())
-        
-        if model_config.matrix_outputs:
-            pages.append(self._create_matrix_page())
-        
-        if model_config.edid_modes:
-            pages.append(self._create_edid_page())
-        
-        if (model_config.color_space_modes or 
-            model_config.deep_color_modes or 
-            model_config.output_resolutions):
-            pages.append(self._create_video_page())
-        
-        if model_config.scale_modes:
-            pages.append(self._create_scale_page())
-        
-        if model_config.audio_modes or model_config.audio_delay_support:
-            pages.append(self._create_audio_page())
-        
-        if model_config.led_modes:
-            pages.append(self._create_led_page())
-        
-        if model_config.hdr_custom_support or model_config.hdr_disable_support:
-            pages.append(self._create_hdr_page())
-        
-        if model_config.cec_support or model_config.arc_force_modes or model_config.earc_force_modes:
-            pages.append(self._create_cec_earc_page())
+        model = self._device.model_config
 
+        if model.input_count > 0:
+            pages.append(self._create_sources_page())
+
+        if model.edid_modes:
+            pages.append(self._create_edid_page())
+
+        if model.hdr_custom_support or model.hdr_disable_support:
+            pages.append(self._create_hdr_page())
+
+        if model.earc_force_modes or model.arc_force_modes:
+            pages.append(self._create_audio_page())
+
+        if model.color_space_modes or model.deep_color_modes or model.scale_modes:
+            pages.append(self._create_video_page())
+
+        pages.append(self._create_settings_page())
         pages.append(self._create_system_page())
 
         return pages
 
     def _create_sources_page(self) -> UiPage:
-        items = [create_ui_text(text="Select Input", x=0, y=0, size=Size(width=4))]
-        
+        """Create input sources page."""
+        items = [create_ui_text(text="Input", x=0, y=0, size=Size(width=4))]
+
         for i, source in enumerate(self._device.source_list):
             cmd_id = f"set_source_{source.replace(' ', '_')}"
-            items.append(create_ui_text(
-                text=source, 
-                x=i, 
-                y=1, 
-                cmd=EntityCommand(cmd_id, {"command": cmd_id})
-            ))
-        
+            items.append(
+                create_ui_text(
+                    text=source,
+                    x=i % 4,
+                    y=1 + i // 4,
+                    cmd=EntityCommand(cmd_id, {"command": cmd_id}),
+                )
+            )
+
         return UiPage(page_id="sources", name="Sources", items=items)
 
-    def _create_matrix_page(self) -> UiPage:
+    def _create_settings_page(self) -> UiPage:
+        """Create settings page."""
         items = []
-        model_config = self._device.model_config
-        
-        items.append(create_ui_text(text="Matrix Routing", x=0, y=0, size=Size(width=4)))
-        
-        row = 1
-        for output_num in range(model_config.matrix_outputs):
-            output_name = f"TX{output_num}" if model_config.model_id != "vertex" else ("Top" if output_num == 0 else "Bottom")
-            items.append(create_ui_text(text=output_name, x=0, y=row, size=Size(width=1)))
-            
-            col = 1
-            for source in self._device.source_list[:3]:
-                cmd_id = f"route_tx{output_num}_{source.replace(' ', '_')}"
-                items.append(create_ui_text(
-                    text=source[:6], 
-                    x=col, 
-                    y=row, 
-                    cmd=EntityCommand(cmd_id, {"command": cmd_id})
-                ))
-                col += 1
-            
-            row += 1
+        model = self._device.model_config
+        y = 0
 
-        return UiPage(page_id="matrix", name="Matrix", items=items)
+        if model.hdr_custom_support:
+            items.append(create_ui_text(text="HDR Custom", x=0, y=y, size=Size(width=2)))
+            items.append(
+                create_ui_text(
+                    text="ON", x=2, y=y,
+                    cmd=EntityCommand("set_hdrcustom_on", {"command": "set_hdrcustom_on"}),
+                )
+            )
+            items.append(
+                create_ui_text(
+                    text="OFF", x=3, y=y,
+                    cmd=EntityCommand("set_hdrcustom_off", {"command": "set_hdrcustom_off"}),
+                )
+            )
+            y += 1
+
+        if model.cec_support:
+            items.append(create_ui_text(text="CEC", x=0, y=y, size=Size(width=2)))
+            items.append(
+                create_ui_text(
+                    text="ON", x=2, y=y,
+                    cmd=EntityCommand("set_cec_on", {"command": "set_cec_on"}),
+                )
+            )
+            items.append(
+                create_ui_text(
+                    text="OFF", x=3, y=y,
+                    cmd=EntityCommand("set_cec_off", {"command": "set_cec_off"}),
+                )
+            )
+            y += 1
+
+        if model.oled_support:
+            items.append(create_ui_text(text="OLED", x=0, y=y, size=Size(width=2)))
+            items.append(
+                create_ui_text(
+                    text="ON", x=2, y=y,
+                    cmd=EntityCommand("set_oled_on", {"command": "set_oled_on"}),
+                )
+            )
+            items.append(
+                create_ui_text(
+                    text="OFF", x=3, y=y,
+                    cmd=EntityCommand("set_oled_off", {"command": "set_oled_off"}),
+                )
+            )
+            y += 1
+
+        if model.autoswitch_support:
+            items.append(create_ui_text(text="Auto Switch", x=0, y=y, size=Size(width=2)))
+            items.append(
+                create_ui_text(
+                    text="ON", x=2, y=y,
+                    cmd=EntityCommand("set_autosw_on", {"command": "set_autosw_on"}),
+                )
+            )
+            items.append(
+                create_ui_text(
+                    text="OFF", x=3, y=y,
+                    cmd=EntityCommand("set_autosw_off", {"command": "set_autosw_off"}),
+                )
+            )
+
+        return UiPage(page_id="settings", name="Settings", items=items)
 
     def _create_edid_page(self) -> UiPage:
-        items = []
-        y_pos = 0
-        model_config = self._device.model_config
+        """Create EDID page."""
+        items = [create_ui_text(text="EDID Mode", x=0, y=0, size=Size(width=4))]
+        model = self._device.model_config
 
-        items.append(create_ui_text(text="EDID Mode", x=0, y=y_pos, size=Size(width=5)))
-        y_pos += 1
-        for i, mode in enumerate(model_config.edid_modes[:5]):
+        for i, mode in enumerate(model.edid_modes[:8]):
             cmd_id = f"set_edidmode_{mode}"
-            items.append(create_ui_text(
-                text=mode.title(), 
-                x=i, 
-                y=y_pos, 
-                cmd=EntityCommand(cmd_id, {"command": cmd_id})
-            ))
-        y_pos += 2
+            items.append(
+                create_ui_text(
+                    text=mode.title(),
+                    x=i % 4,
+                    y=1 + i // 4,
+                    cmd=EntityCommand(cmd_id, {"command": cmd_id}),
+                )
+            )
 
-        if model_config.edid_audio_sources:
-            items.append(create_ui_text(text="Audio Source", x=0, y=y_pos, size=Size(width=5)))
-            y_pos += 1
-            for i, source in enumerate(model_config.edid_audio_sources[:5]):
-                label = "5.1" if source == "51" else source.title()
-                cmd_id = f"set_edidaudio_{source}"
-                items.append(create_ui_text(
-                    text=label,
-                    x=i,
-                    y=y_pos,
-                    cmd=EntityCommand(cmd_id, {"command": cmd_id})
-                ))
+        return UiPage(page_id="edid", name="EDID", items=items)
 
-        return UiPage(page_id="edid", name="EDID", grid=Size(width=5, height=6), items=items)
-
-    def _create_video_page(self) -> UiPage:
+    def _create_hdr_page(self) -> UiPage:
+        """Create HDR page."""
         items = []
-        y_pos = 0
-        model_config = self._device.model_config
+        model = self._device.model_config
+        y = 0
 
-        if model_config.color_space_modes:
-            items.append(create_ui_text(text="Color Space", x=0, y=y_pos, size=Size(width=5)))
-            y_pos += 1
-            for i, mode in enumerate(model_config.color_space_modes[:5]):
-                cmd_id = f"set_colorspace_{mode}"
-                label = mode.upper() if len(mode) <= 6 else mode[:6]
-                items.append(create_ui_text(
-                    text=label, 
-                    x=i, 
-                    y=y_pos, 
-                    cmd=EntityCommand(cmd_id, {"command": cmd_id})
-                ))
-            y_pos += 1
+        if model.hdr_custom_support:
+            items.append(create_ui_text(text="HDR Custom", x=0, y=y, size=Size(width=2)))
+            items.append(
+                create_ui_text(
+                    text="ON", x=2, y=y,
+                    cmd=EntityCommand("set_hdrcustom_on", {"command": "set_hdrcustom_on"}),
+                )
+            )
+            items.append(
+                create_ui_text(
+                    text="OFF", x=3, y=y,
+                    cmd=EntityCommand("set_hdrcustom_off", {"command": "set_hdrcustom_off"}),
+                )
+            )
+            y += 1
 
-        if model_config.deep_color_modes:
-            items.append(create_ui_text(text="Bit Depth", x=0, y=y_pos, size=Size(width=4)))
-            y_pos += 1
-            for i, mode in enumerate(model_config.deep_color_modes[:4]):
-                cmd_id = f"set_deepcolor_{mode}"
-                items.append(create_ui_text(
-                    text=mode.upper(), 
-                    x=i, 
-                    y=y_pos, 
-                    cmd=EntityCommand(cmd_id, {"command": cmd_id})
-                ))
-            y_pos += 1
+        if model.hdr_disable_support:
+            items.append(create_ui_text(text="HDR Disable", x=0, y=y, size=Size(width=2)))
+            items.append(
+                create_ui_text(
+                    text="ON", x=2, y=y,
+                    cmd=EntityCommand("set_hdrdisable_on", {"command": "set_hdrdisable_on"}),
+                )
+            )
+            items.append(
+                create_ui_text(
+                    text="OFF", x=3, y=y,
+                    cmd=EntityCommand("set_hdrdisable_off", {"command": "set_hdrdisable_off"}),
+                )
+            )
 
-        if model_config.output_resolutions and y_pos < 5:
-            items.append(create_ui_text(text="Resolution", x=0, y=y_pos, size=Size(width=4)))
-            y_pos += 1
-            col = 0
-            for res in model_config.output_resolutions:
-                if y_pos >= 6:
-                    break
-                cmd_id = f"set_resolution_{res}"
-                items.append(create_ui_text(
-                    text=res.upper()[:6], 
-                    x=col, 
-                    y=y_pos, 
-                    cmd=EntityCommand(cmd_id, {"command": cmd_id})
-                ))
-                col += 1
-                if col >= 4:
-                    col = 0
-                    y_pos += 1
-
-        return UiPage(page_id="video", name="Video", grid=Size(width=5, height=6), items=items)
-
-    def _create_scale_page(self) -> UiPage:
-        items = []
-        y_pos = 0
-        model_config = self._device.model_config
-
-        items.append(create_ui_text(text="Scale Mode", x=0, y=y_pos, size=Size(width=5)))
-        y_pos += 1
-        
-        for i, mode in enumerate(model_config.scale_modes[:5]):
-            display_name = mode.replace("_", " ").title()
-            if len(display_name) > 8:
-                display_name = display_name[:8]
-            cmd_id = f"set_scalemode_{mode}"
-            items.append(create_ui_text(
-                text=display_name, 
-                x=i, 
-                y=y_pos, 
-                cmd=EntityCommand(cmd_id, {"command": cmd_id})
-            ))
-        
-        y_pos += 2
-        if len(model_config.scale_modes) > 5:
-            for i, mode in enumerate(model_config.scale_modes[5:10]):
-                display_name = mode.replace("_", " ").title()
-                if len(display_name) > 8:
-                    display_name = display_name[:8]
-                cmd_id = f"set_scalemode_{mode}"
-                items.append(create_ui_text(
-                    text=display_name, 
-                    x=i, 
-                    y=y_pos, 
-                    cmd=EntityCommand(cmd_id, {"command": cmd_id})
-                ))
-
-        return UiPage(page_id="scale", name="Scale", grid=Size(width=5, height=6), items=items)
+        return UiPage(page_id="hdr", name="HDR", items=items)
 
     def _create_audio_page(self) -> UiPage:
-        items = []
-        y_pos = 0
-        model_config = self._device.model_config
+        """Create audio/eARC page."""
+        items = [create_ui_text(text="Audio Output", x=0, y=0, size=Size(width=4))]
+        model = self._device.model_config
+        y = 1
 
-        if model_config.audio_modes:
-            items.append(create_ui_text(text="Audio Mode", x=0, y=y_pos, size=Size(width=4)))
-            y_pos += 1
-            for i, mode in enumerate(model_config.audio_modes):
-                cmd_id = f"set_audiomode_{mode}"
-                items.append(create_ui_text(
-                    text=mode.title(), 
-                    x=i, 
-                    y=y_pos, 
-                    cmd=EntityCommand(cmd_id, {"command": cmd_id})
-                ))
-            y_pos += 2
+        if model.earc_force_modes:
+            for i, mode in enumerate(model.earc_force_modes[:4]):
+                cmd_id = f"set_earcforce_{mode}"
+                items.append(
+                    create_ui_text(
+                        text=mode.title(),
+                        x=i % 4,
+                        y=y,
+                        cmd=EntityCommand(cmd_id, {"command": cmd_id}),
+                    )
+                )
+            y += 1
 
-        if model_config.audio_delay_support:
-            items.append(create_ui_text(text="Lip Sync", x=0, y=y_pos, size=Size(width=3)))
-            items.append(create_ui_text(
-                text="-", 
-                x=0, 
-                y=y_pos + 1, 
-                cmd=EntityCommand("audio_delay_minus", {"command": "audio_delay_minus"})
-            ))
-            items.append(create_ui_text(
-                text="Reset", 
-                x=1, 
-                y=y_pos + 1, 
-                cmd=EntityCommand("audio_delay_reset", {"command": "audio_delay_reset"})
-            ))
-            items.append(create_ui_text(
-                text="+", 
-                x=2, 
-                y=y_pos + 1, 
-                cmd=EntityCommand("audio_delay_plus", {"command": "audio_delay_plus"})
-            ))
+        if model.arc_force_modes:
+            items.append(create_ui_text(text="ARC Mode", x=0, y=y, size=Size(width=4)))
+            y += 1
+            for i, mode in enumerate(model.arc_force_modes[:4]):
+                cmd_id = f"set_arcforce_{mode}"
+                items.append(
+                    create_ui_text(
+                        text=mode.title(),
+                        x=i % 4,
+                        y=y,
+                        cmd=EntityCommand(cmd_id, {"command": cmd_id}),
+                    )
+                )
 
         return UiPage(page_id="audio", name="Audio", items=items)
 
-    def _create_led_page(self) -> UiPage:
+    def _create_video_page(self) -> UiPage:
+        """Create video settings page."""
         items = []
-        model_config = self._device.model_config
+        model = self._device.model_config
+        y = 0
 
-        items.append(create_ui_text(text="LED Mode", x=0, y=0, size=Size(width=4)))
-        
-        row, col = 1, 0
-        for mode_id, mode_name in model_config.led_modes.items():
-            cmd_id = f"set_ledprofilevideo_{mode_id}"
-            items.append(create_ui_text(
-                text=mode_name, 
-                x=col, 
-                y=row, 
-                cmd=EntityCommand(cmd_id, {"command": cmd_id})
-            ))
-            
-            col += 1
-            if col >= 4:
-                col = 0
-                row += 1
+        if model.scale_modes:
+            items.append(create_ui_text(text="Scale Mode", x=0, y=y, size=Size(width=4)))
+            y += 1
+            for i, mode in enumerate(model.scale_modes[:4]):
+                cmd_id = f"set_scalemode_{mode}"
+                items.append(
+                    create_ui_text(
+                        text=mode.title(),
+                        x=i % 4,
+                        y=y,
+                        cmd=EntityCommand(cmd_id, {"command": cmd_id}),
+                    )
+                )
+            y += 1
 
-        if model_config.led_brightness_support:
-            row += 1
-            if row < 6:
-                items.append(create_ui_text(text="Brightness", x=0, y=row, size=Size(width=4)))
-                row += 1
-                
-                if row < 6:
-                    presets = [("25%", "25"), ("50%", "50"), ("75%", "75"), ("100%", "100")]
-                    for i, (label, value) in enumerate(presets):
-                        cmd_id = f"set_led_brightness_{value}"
-                        items.append(create_ui_text(
-                            text=label, 
-                            x=i, 
-                            y=row, 
-                            cmd=EntityCommand(cmd_id, {"command": cmd_id})
-                        ))
+        if model.color_space_modes:
+            items.append(create_ui_text(text="Color Space", x=0, y=y, size=Size(width=4)))
+            y += 1
+            for i, mode in enumerate(model.color_space_modes[:4]):
+                cmd_id = f"set_colorspace_{mode}"
+                items.append(
+                    create_ui_text(
+                        text=mode.upper(),
+                        x=i % 4,
+                        y=y,
+                        cmd=EntityCommand(cmd_id, {"command": cmd_id}),
+                    )
+                )
+            y += 1
 
-        return UiPage(page_id="led", name="LED/Ambilight", items=items)
+        if model.deep_color_modes:
+            items.append(create_ui_text(text="Deep Color", x=0, y=y, size=Size(width=4)))
+            y += 1
+            for i, mode in enumerate(model.deep_color_modes[:4]):
+                cmd_id = f"set_deepcolor_{mode}"
+                items.append(
+                    create_ui_text(
+                        text=mode.title(),
+                        x=i % 4,
+                        y=y,
+                        cmd=EntityCommand(cmd_id, {"command": cmd_id}),
+                    )
+                )
 
-    def _create_hdr_page(self) -> UiPage:
-        items = []
-        y_pos = 0
-        model_config = self._device.model_config
+        return UiPage(page_id="video", name="Video", items=items)
 
-        if model_config.hdr_custom_support:
-            items.append(create_ui_text(text="Custom HDR", x=0, y=y_pos, size=Size(width=2)))
-            items.append(create_ui_text(
-                text="ON", 
-                x=2, 
-                y=y_pos, 
-                cmd=EntityCommand("set_hdrcustom_on", {"command": "set_hdrcustom_on"})
-            ))
-            items.append(create_ui_text(
-                text="OFF", 
-                x=3, 
-                y=y_pos, 
-                cmd=EntityCommand("set_hdrcustom_off", {"command": "set_hdrcustom_off"})
-            ))
-            y_pos += 1
-
-        if model_config.hdr_disable_support:
-            items.append(create_ui_text(text="Disable HDR", x=0, y=y_pos, size=Size(width=2)))
-            items.append(create_ui_text(
-                text="ON", 
-                x=2, 
-                y=y_pos, 
-                cmd=EntityCommand("set_hdrdisable_on", {"command": "set_hdrdisable_on"})
-            ))
-            items.append(create_ui_text(
-                text="OFF", 
-                x=3, 
-                y=y_pos, 
-                cmd=EntityCommand("set_hdrdisable_off", {"command": "set_hdrdisable_off"})
-            ))
-        
-        return UiPage(page_id="hdr", name="HDR", items=items)
-
-    def _create_cec_earc_page(self) -> UiPage:
-        items = []
-        y_pos = 0
-        model_config = self._device.model_config
-
-        if model_config.cec_support:
-            items.append(create_ui_text(text="CEC Engine", x=0, y=y_pos, size=Size(width=2)))
-            items.append(create_ui_text(
-                text="ON", 
-                x=2, 
-                y=y_pos, 
-                cmd=EntityCommand("set_cec_on", {"command": "set_cec_on"})
-            ))
-            items.append(create_ui_text(
-                text="OFF", 
-                x=3, 
-                y=y_pos, 
-                cmd=EntityCommand("set_cec_off", {"command": "set_cec_off"})
-            ))
-            y_pos += 2
-        
-        if model_config.arc_force_modes:
-            items.append(create_ui_text(text="ARC Force", x=0, y=y_pos, size=Size(width=4)))
-            y_pos += 1
-            for i, mode in enumerate(model_config.arc_force_modes[:4]):
-                cmd_id = f"set_arcforce_{mode}"
-                items.append(create_ui_text(
-                    text=mode.title(), 
-                    x=i, 
-                    y=y_pos, 
-                    cmd=EntityCommand(cmd_id, {"command": cmd_id})
-                ))
-            y_pos += 2
-        
-        if model_config.earc_force_modes:
-            earc_labels = {
-                "autoearc": "Auto eARC",
-                "manualearc": "eARC",
-                "hdmi": "HDMI",
-                "autoarc": "Auto ARC",
-                "manualarc": "ARC",
-                "auto": "Auto",
-                "earc": "eARC",
-            }
-            items.append(create_ui_text(text="eARC/ARC Mode", x=0, y=y_pos, size=Size(width=5)))
-            y_pos += 1
-            col = 0
-            for mode in model_config.earc_force_modes:
-                cmd_id = f"set_earcforce_{mode}"
-                label = earc_labels.get(mode, mode.title())
-                items.append(create_ui_text(
-                    text=label,
-                    x=col,
-                    y=y_pos,
-                    cmd=EntityCommand(cmd_id, {"command": cmd_id})
-                ))
-                col += 1
-                if col >= 5:
-                    col = 0
-                    y_pos += 1
-
-        return UiPage(page_id="cec_earc", name="CEC/eARC", items=items)
-        
     def _create_system_page(self) -> UiPage:
-        items = []
-        y_pos = 0
-        model_config = self._device.model_config
+        """Create system page."""
+        items = [
+            create_ui_text(text="System", x=0, y=0, size=Size(width=4)),
+            create_ui_text(
+                text="Hotplug", x=0, y=1,
+                cmd=EntityCommand("hotplug", {"command": "hotplug"}),
+            ),
+            create_ui_text(
+                text="Reboot", x=1, y=1,
+                cmd=EntityCommand("reboot_device", {"command": "reboot_device"}),
+            ),
+        ]
 
-        if model_config.oled_support:
-            items.append(create_ui_text(text="OLED Display", x=0, y=y_pos, size=Size(width=2)))
-            items.append(create_ui_text(
-                text="ON", 
-                x=2, 
-                y=y_pos, 
-                cmd=EntityCommand("set_oled_on", {"command": "set_oled_on"})
-            ))
-            items.append(create_ui_text(
-                text="OFF", 
-                x=3, 
-                y=y_pos, 
-                cmd=EntityCommand("set_oled_off", {"command": "set_oled_off"})
-            ))
-            y_pos += 1
-
-        if model_config.autoswitch_support:
-            items.append(create_ui_text(text="Autoswitch", x=0, y=y_pos, size=Size(width=2)))
-            items.append(create_ui_text(
-                text="ON", 
-                x=2, 
-                y=y_pos, 
-                cmd=EntityCommand("set_autosw_on", {"command": "set_autosw_on"})
-            ))
-            items.append(create_ui_text(
-                text="OFF", 
-                x=3, 
-                y=y_pos, 
-                cmd=EntityCommand("set_autosw_off", {"command": "set_autosw_off"})
-            ))
-            y_pos += 2
-
-        if model_config.hdcp_modes:
-            items.append(create_ui_text(text="HDCP Mode", x=0, y=y_pos, size=Size(width=4)))
-            y_pos += 1
-            for i, mode in enumerate(model_config.hdcp_modes):
-                cmd_id = f"set_hdcp_{'14' if mode == '1.4' else mode}"
-                items.append(create_ui_text(
-                    text=mode,
-                    x=i,
-                    y=y_pos,
-                    cmd=EntityCommand(cmd_id, {"command": cmd_id})
-                ))
-            y_pos += 2
-
-        items.append(create_ui_text(
-            text="Reboot",
-            x=0,
-            y=y_pos,
-            cmd=EntityCommand("reboot_device", {"command": "reboot_device"})
-        ))
-        items.append(create_ui_text(
-            text="Hotplug",
-            x=1,
-            y=y_pos,
-            cmd=EntityCommand("hotplug", {"command": "hotplug"})
-        ))
-
-        return UiPage(page_id="system", name="System", grid=Size(4, 8), items=items)
+        return UiPage(page_id="system", name="System", items=items)

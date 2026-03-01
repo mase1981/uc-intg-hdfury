@@ -46,7 +46,7 @@ jobs:
             bash -c \
             "cd /workspace && \
               python -m pip install -r requirements.txt && \
-              pyinstaller --clean --onedir --name intg-${{ env.DRIVER_ID }} --collect-all zeroconf uc_intg_hdfury/driver.py"
+              pyinstaller --clean --onedir --name intg-${{ env.DRIVER_ID }} --collect-all zeroconf --add-data driver.json:. uc_intg_hdfury/__main__.py"
 
       - name: Prepare artifacts
         shell: bash
@@ -55,6 +55,8 @@ jobs:
           mv dist/intg-${{ env.DRIVER_ID }}/* artifacts/bin
           mv artifacts/bin/intg-${{ env.DRIVER_ID }} artifacts/bin/driver
           cp driver.json artifacts/
+          # Copy icon file to archive root (required format: custom:$ICON_FILENAME)
+          [[ -f assets/driver-logo.png ]] && cp assets/driver-logo.png artifacts/
           echo "ARTIFACT_NAME=uc-intg-${{ env.DRIVER_ID }}-${{ env.VERSION }}-aarch64" >> $GITHUB_ENV
           
       - name: Create upload artifact archive
