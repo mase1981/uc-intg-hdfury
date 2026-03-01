@@ -94,11 +94,46 @@ Available through remote entity UI pages.
 
 ## Installation
 
+### Option 1: Remote Web Interface (Recommended)
+
 1. Download the latest `.tar.gz` from [Releases](https://github.com/mase1981/uc-intg-hdfury/releases)
 2. Open Remote web interface → **Settings** → **Integrations**
 3. Click **Upload** and select the downloaded file
 4. Configure: Select model, enter IP address
 5. Done - entities are created automatically
+
+### Option 2: Docker
+
+**Image:** `ghcr.io/mase1981/uc-intg-hdfury:latest`
+
+**Docker Compose:**
+```yaml
+services:
+  uc-intg-hdfury:
+    image: ghcr.io/mase1981/uc-intg-hdfury:latest
+    container_name: uc-intg-hdfury
+    network_mode: host
+    volumes:
+      - ./config:/data
+    environment:
+      - UC_CONFIG_HOME=/data
+      - UC_INTEGRATION_HTTP_PORT=9029
+      - UC_INTEGRATION_INTERFACE=0.0.0.0
+    restart: unless-stopped
+```
+
+**Docker Run:**
+```bash
+docker run -d \
+  --name uc-intg-hdfury \
+  --network host \
+  -v ./config:/data \
+  -e UC_CONFIG_HOME=/data \
+  -e UC_INTEGRATION_HTTP_PORT=9029 \
+  -e UC_INTEGRATION_INTERFACE=0.0.0.0 \
+  --restart unless-stopped \
+  ghcr.io/mase1981/uc-intg-hdfury:latest
+```
 
 **Requirements:**
 - HDFury device on same network
