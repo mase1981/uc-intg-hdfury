@@ -102,9 +102,11 @@ Available through remote entity UI pages.
 4. Configure: Select model, enter IP address
 5. Done - entities are created automatically
 
-### Option 2: Docker
+### Option 2: Docker (Advanced Users)
 
-**Image:** `ghcr.io/mase1981/uc-intg-hdfury:latest`
+The integration is available as a pre-built Docker image from GitHub Container Registry:
+
+**Image**: `ghcr.io/mase1981/uc-intg-hdfury:latest`
 
 **Docker Compose:**
 ```yaml
@@ -114,25 +116,18 @@ services:
     container_name: uc-intg-hdfury
     network_mode: host
     volumes:
-      - ./config:/data
+      - </local/path>:/data
     environment:
       - UC_CONFIG_HOME=/data
       - UC_INTEGRATION_HTTP_PORT=9029
       - UC_INTEGRATION_INTERFACE=0.0.0.0
+      - PYTHONPATH=/app
     restart: unless-stopped
 ```
 
 **Docker Run:**
 ```bash
-docker run -d \
-  --name uc-intg-hdfury \
-  --network host \
-  -v ./config:/data \
-  -e UC_CONFIG_HOME=/data \
-  -e UC_INTEGRATION_HTTP_PORT=9029 \
-  -e UC_INTEGRATION_INTERFACE=0.0.0.0 \
-  --restart unless-stopped \
-  ghcr.io/mase1981/uc-intg-hdfury:latest
+docker run -d --name uc-hdfury --restart unless-stopped --network host -v hdfury-config:/app/config -e UC_CONFIG_HOME=/app/config -e UC_INTEGRATION_INTERFACE=0.0.0.0 -e UC_INTEGRATION_HTTP_PORT=9029 -e PYTHONPATH=/app ghcr.io/mase1981/uc-intg-hdfury:latest
 ```
 
 **Requirements:**
