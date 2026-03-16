@@ -15,6 +15,9 @@ from uc_intg_hdfury.models import ModelConfig, get_model_config, get_source_list
 
 _LOG = logging.getLogger(__name__)
 
+RESPONSE_TIMEOUT = 3.0
+HEARTBEAT_INTERVAL = 20
+
 
 class HDFuryDevice(PersistentConnectionDevice):
     """HDFury device using persistent TCP connection."""
@@ -55,6 +58,8 @@ class HDFuryDevice(PersistentConnectionDevice):
 
     async def establish_connection(self):
         """Establish TCP connection to HDFury device."""
+        await self._close_tcp()
+
         _LOG.info("%s Connecting to %s:%d", self.log_id, self._config.address, self._config.port)
 
         self._reader, self._writer = await asyncio.wait_for(
@@ -62,10 +67,7 @@ class HDFuryDevice(PersistentConnectionDevice):
             timeout=10.0,
         )
 
-        try:
-            await asyncio.wait_for(self._reader.read(2048), timeout=1.0)
-        except asyncio.TimeoutError:
-            pass
+        await self._drain_buffer()
 
         version = await self._send_command("get ver")
         if version:
@@ -80,24 +82,43 @@ class HDFuryDevice(PersistentConnectionDevice):
     async def close_connection(self):
         """Close TCP connection."""
         _LOG.info("%s Disconnecting", self.log_id)
-        if self._writer:
-            self._writer.close()
-            try:
-                await self._writer.wait_closed()
-            except Exception:
-                pass
+        await self._close_tcp()
+
+    async def _close_tcp(self):
+        """Close TCP socket if open."""
+        writer = self._writer
         self._reader = None
         self._writer = None
+        if writer:
+            try:
+                writer.close()
+                await writer.wait_closed()
+            except Exception:
+                pass
+
+    async def _drain_buffer(self):
+        """Drain any pending data from the TCP read buffer."""
+        if not self._reader:
+            return
+        try:
+            while True:
+                data = await asyncio.wait_for(self._reader.read(4096), timeout=0.3)
+                if not data:
+                    break
+        except asyncio.TimeoutError:
+            pass
 
     async def maintain_connection(self):
         """Maintain connection with periodic heartbeat and state polling."""
         while self._reader and self._writer and not self._reader.at_eof():
             try:
-                await asyncio.sleep(10)
+                await asyncio.sleep(HEARTBEAT_INTERVAL)
 
-                if self._reader.at_eof():
+                if not self._reader or not self._writer or self._reader.at_eof():
                     _LOG.warning("%s Connection EOF detected", self.log_id)
                     break
+
+                await self._drain_buffer()
 
                 version = await self._send_command("get ver")
                 if not version:
@@ -115,8 +136,10 @@ class HDFuryDevice(PersistentConnectionDevice):
                 _LOG.error("%s Connection error: %s", self.log_id, err)
                 break
 
-    async def _send_command(self, command: str, timeout: float = 5.0) -> str | None:
-        """Send command and return response."""
+        await self._close_tcp()
+
+    async def _send_command(self, command: str, timeout: float = RESPONSE_TIMEOUT) -> str | None:
+        """Send command and return response, reading all available lines."""
         async with self._lock:
             if not self._writer or not self._reader:
                 return None
@@ -128,10 +151,44 @@ class HDFuryDevice(PersistentConnectionDevice):
                 self._writer.write(f"{command}\r\n".encode("ascii"))
                 await self._writer.drain()
 
-                response = await asyncio.wait_for(self._reader.readline(), timeout=timeout)
-                if not response:
+                result_lines = []
+                deadline = asyncio.get_event_loop().time() + timeout
+
+                while True:
+                    remaining = deadline - asyncio.get_event_loop().time()
+                    if remaining <= 0:
+                        break
+
+                    try:
+                        line = await asyncio.wait_for(
+                            self._reader.readline(),
+                            timeout=min(remaining, 1.0),
+                        )
+                    except asyncio.TimeoutError:
+                        if result_lines:
+                            break
+                        continue
+
+                    if not line:
+                        break
+
+                    decoded = line.decode("ascii", errors="replace").strip()
+                    if not decoded or decoded == ">":
+                        if result_lines:
+                            break
+                        continue
+
+                    cleaned = decoded.replace(">", "").strip()
+                    if cleaned:
+                        result_lines.append(cleaned)
+                        break
+
+                if not result_lines:
+                    if command.startswith("set "):
+                        return ""
                     return None
-                return response.decode("ascii").replace(">", "").strip()
+
+                return result_lines[0]
 
             except asyncio.TimeoutError:
                 if command.startswith("set "):
