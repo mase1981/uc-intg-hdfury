@@ -33,10 +33,10 @@ class HDFuryRemote(RemoteEntity):
         simple_commands = self._build_simple_commands()
 
         super().__init__(
-            entity_id=f"remote.{config.identifier}",
-            name=config.name,
-            features=[],
-            attributes={Attributes.STATE: States.UNKNOWN},
+            f"remote.{config.identifier}",
+            config.name,
+            [],
+            {Attributes.STATE: States.UNKNOWN},
             simple_commands=simple_commands,
             cmd_handler=self._handle_command,
             ui_pages=ui_pages,

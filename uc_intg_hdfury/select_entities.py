@@ -34,10 +34,9 @@ class HDFurySelect(SelectEntity):
         command_fn: Callable[[str], Awaitable[bool]],
     ):
         super().__init__(
-            entity_id=entity_id,
-            name=name,
-            features=[],
-            attributes={
+            entity_id,
+            name,
+            {
                 Attributes.STATE: States.UNKNOWN,
                 Attributes.OPTIONS: [],
                 Attributes.CURRENT_OPTION: "",

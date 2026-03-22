@@ -32,10 +32,10 @@ class HDFurySensor(SensorEntity):
         unit: str,
     ):
         super().__init__(
-            entity_id=entity_id,
-            name=name,
-            features=[],
-            attributes={
+            entity_id,
+            name,
+            [],
+            {
                 Attributes.STATE: States.UNKNOWN,
                 Attributes.VALUE: "",
             },
