@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "uc-intg-hdfury"
-version = "1.1.2"
+version = "2.0.0"
 description = "Unfolded Circle Integration for HDFury devices"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -27,9 +27,7 @@ classifiers = [
 
 dependencies = [
     "ucapi>=0.5.2",
-    "ucapi-framework>=1.8.4",
-    "pyee~=9.0.4",
-    "certifi",
+    "ucapi-framework>=1.9.1",
 ]
 
 [project.optional-dependencies]

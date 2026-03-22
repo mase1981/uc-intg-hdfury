@@ -11,8 +11,9 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from ucapi import StatusCodes
-from ucapi.remote import Attributes, Commands, Remote, States
+from ucapi.remote import Attributes, Commands, States
 from ucapi.ui import EntityCommand, Size, UiPage, create_ui_text
+from ucapi_framework import RemoteEntity
 
 if TYPE_CHECKING:
     from uc_intg_hdfury.config import HDFuryConfig
@@ -21,8 +22,8 @@ if TYPE_CHECKING:
 _LOG = logging.getLogger(__name__)
 
 
-class HDFuryRemote(Remote):
-    """HDFury remote entity with UI pages."""
+class HDFuryRemote(RemoteEntity):
+    """HDFury remote entity with UI pages using subscribe/sync_state pattern."""
 
     def __init__(self, config: HDFuryConfig, device: HDFuryDevice):
         self._device = device
@@ -32,19 +33,22 @@ class HDFuryRemote(Remote):
         simple_commands = self._build_simple_commands()
 
         super().__init__(
-            f"remote.{config.identifier}",
-            config.name,
-            [],
-            {Attributes.STATE: States.ON},
+            entity_id=f"remote.{config.identifier}",
+            name=config.name,
+            features=[],
+            attributes={Attributes.STATE: States.UNKNOWN},
             simple_commands=simple_commands,
             cmd_handler=self._handle_command,
             ui_pages=ui_pages,
         )
+        self.subscribe_to_device(device)
+
+    async def sync_state(self):
+        self.update({Attributes.STATE: States.ON})
 
     async def _handle_command(
-        self, entity: Remote, cmd_id: str, params: dict[str, Any] | None
+        self, entity: Any, cmd_id: str, params: dict[str, Any] | None
     ) -> StatusCodes:
-        """Handle remote commands."""
         if cmd_id == Commands.SEND_CMD:
             if not params or "command" not in params:
                 return StatusCodes.BAD_REQUEST
@@ -67,7 +71,6 @@ class HDFuryRemote(Remote):
         return StatusCodes.NOT_IMPLEMENTED
 
     async def _execute_command(self, command: str) -> bool:
-        """Execute a single command on the device."""
         if command.startswith("set_source_"):
             source = command.replace("set_source_", "").replace("_", " ")
             return await self._device.set_source(source)
@@ -150,7 +153,6 @@ class HDFuryRemote(Remote):
         return await self._device.send_command(f"set {command}")
 
     def _build_simple_commands(self) -> list[str]:
-        """Build list of simple commands based on model capabilities."""
         commands = []
         model = self._device.model_config
 
@@ -218,7 +220,6 @@ class HDFuryRemote(Remote):
         return commands
 
     def _build_ui_pages(self) -> list[UiPage]:
-        """Build UI pages based on model capabilities."""
         pages = []
         model = self._device.model_config
 
@@ -243,7 +244,6 @@ class HDFuryRemote(Remote):
         return pages
 
     def _create_sources_page(self) -> UiPage:
-        """Create input sources page."""
         items = [create_ui_text(text="Input", x=0, y=0, size=Size(width=4))]
 
         for i, source in enumerate(self._device.source_list):
@@ -260,7 +260,6 @@ class HDFuryRemote(Remote):
         return UiPage(page_id="sources", name="Sources", items=items)
 
     def _create_settings_page(self) -> UiPage:
-        """Create settings page."""
         items = []
         model = self._device.model_config
         y = 0
@@ -331,7 +330,6 @@ class HDFuryRemote(Remote):
         return UiPage(page_id="settings", name="Settings", items=items)
 
     def _create_edid_page(self) -> UiPage:
-        """Create EDID page."""
         items = [create_ui_text(text="EDID Mode", x=0, y=0, size=Size(width=4))]
         model = self._device.model_config
 
@@ -349,7 +347,6 @@ class HDFuryRemote(Remote):
         return UiPage(page_id="edid", name="EDID", items=items)
 
     def _create_hdr_page(self) -> UiPage:
-        """Create HDR page."""
         items = []
         model = self._device.model_config
         y = 0
@@ -388,7 +385,6 @@ class HDFuryRemote(Remote):
         return UiPage(page_id="hdr", name="HDR", items=items)
 
     def _create_audio_page(self) -> UiPage:
-        """Create audio/eARC page."""
         items = [create_ui_text(text="Audio Output", x=0, y=0, size=Size(width=4))]
         model = self._device.model_config
         y = 1
@@ -423,7 +419,6 @@ class HDFuryRemote(Remote):
         return UiPage(page_id="audio", name="Audio", items=items)
 
     def _create_video_page(self) -> UiPage:
-        """Create video settings page."""
         items = []
         model = self._device.model_config
         y = 0
@@ -475,7 +470,6 @@ class HDFuryRemote(Remote):
         return UiPage(page_id="video", name="Video", items=items)
 
     def _create_system_page(self) -> UiPage:
-        """Create system page."""
         items = [
             create_ui_text(text="System", x=0, y=0, size=Size(width=4)),
             create_ui_text(

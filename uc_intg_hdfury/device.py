@@ -8,7 +8,7 @@ HDFury device implementation.
 import asyncio
 import logging
 
-from ucapi_framework import PersistentConnectionDevice, DeviceEvents
+from ucapi_framework import PersistentConnectionDevice
 
 from uc_intg_hdfury.config import HDFuryConfig
 from uc_intg_hdfury.models import ModelConfig, get_model_config, get_source_list
@@ -57,7 +57,6 @@ class HDFuryDevice(PersistentConnectionDevice):
         return self._current_source
 
     async def establish_connection(self):
-        """Establish TCP connection to HDFury device."""
         await self._close_tcp()
 
         _LOG.info("%s Connecting to %s:%d", self.log_id, self._config.address, self._config.port)
@@ -80,12 +79,10 @@ class HDFuryDevice(PersistentConnectionDevice):
         return (self._reader, self._writer)
 
     async def close_connection(self):
-        """Close TCP connection."""
         _LOG.info("%s Disconnecting", self.log_id)
         await self._close_tcp()
 
     async def _close_tcp(self):
-        """Close TCP socket if open."""
         writer = self._writer
         self._reader = None
         self._writer = None
@@ -97,7 +94,6 @@ class HDFuryDevice(PersistentConnectionDevice):
                 pass
 
     async def _drain_buffer(self):
-        """Drain any pending data from the TCP read buffer."""
         if not self._reader:
             return
         try:
@@ -109,7 +105,6 @@ class HDFuryDevice(PersistentConnectionDevice):
             pass
 
     async def maintain_connection(self):
-        """Maintain connection with periodic heartbeat and state polling."""
         while self._reader and self._writer and not self._reader.at_eof():
             try:
                 await asyncio.sleep(HEARTBEAT_INTERVAL)
@@ -139,7 +134,6 @@ class HDFuryDevice(PersistentConnectionDevice):
         await self._close_tcp()
 
     async def _send_command(self, command: str, timeout: float = RESPONSE_TIMEOUT) -> str | None:
-        """Send command and return response, reading all available lines."""
         async with self._lock:
             if not self._writer or not self._reader:
                 return None
@@ -201,7 +195,6 @@ class HDFuryDevice(PersistentConnectionDevice):
                 return None
 
     async def _poll_state(self) -> None:
-        """Poll device state and update sensor values."""
         if self.model_config.input_count > 0:
             response = await self._send_command("get insel")
             if response and "insel" in response:
@@ -248,42 +241,16 @@ class HDFuryDevice(PersistentConnectionDevice):
             if response and "AUDIOTX1:" in response:
                 self._sensor_values["audio_tx1"] = response.replace("AUDIOTX1:", "").strip()
 
-        self._emit_updates()
-
-    def _emit_updates(self) -> None:
-        """Emit entity update events for sensors."""
-        sensor_map = {
-            "current_input": f"sensor.{self.identifier}.current_input",
-            "video_input": f"sensor.{self.identifier}.video_input",
-            "audio_rx": f"sensor.{self.identifier}.audio_rx",
-            "video_tx0": f"sensor.{self.identifier}.video_tx0",
-            "sink_tx0": f"sensor.{self.identifier}.sink_tx0",
-            "audio_tx0": f"sensor.{self.identifier}.audio_tx0",
-            "video_tx1": f"sensor.{self.identifier}.video_tx1",
-            "sink_tx1": f"sensor.{self.identifier}.sink_tx1",
-            "audio_tx1": f"sensor.{self.identifier}.audio_tx1",
-        }
-
-        for key, entity_id in sensor_map.items():
-            value = self._sensor_values.get(key)
-            if value:
-                self.events.emit(
-                    DeviceEvents.UPDATE,
-                    entity_id,
-                    {"state": "ON", "value": value},
-                )
+        self.push_update()
 
     def get_sensor_value(self, key: str) -> str | None:
-        """Get sensor value by key."""
         return self._sensor_values.get(key)
 
     async def send_command(self, command: str) -> bool:
-        """Send a command to the device. Returns True on success."""
         result = await self._send_command(command)
         return result is not None
 
     async def set_source(self, source: str) -> bool:
-        """Set input source."""
         if self.model_config.model_id == "vertex":
             source_map = {"Top": "top", "Bottom": "bot"}
             cmd_source = source_map.get(source, "top")
@@ -297,99 +264,81 @@ class HDFuryDevice(PersistentConnectionDevice):
         if result is not None:
             self._current_source = source
             self._sensor_values["current_input"] = source
-            self._emit_updates()
+            self.push_update()
             return True
         return False
 
     async def set_edid_mode(self, mode: str) -> bool:
-        """Set EDID mode."""
         result = await self._send_command(f"set edidmode {mode}")
         return result is not None
 
     async def set_hdcp_mode(self, mode: str) -> bool:
-        """Set HDCP mode."""
         if mode == "14":
             mode = "1.4"
         result = await self._send_command(f"set hdcp {mode}")
         return result is not None
 
     async def set_hdr_custom(self, enabled: bool) -> bool:
-        """Set HDR custom mode."""
         result = await self._send_command(f"set hdrcustom {'on' if enabled else 'off'}")
         return result is not None
 
     async def set_hdr_disable(self, enabled: bool) -> bool:
-        """Set HDR disable mode."""
         result = await self._send_command(f"set hdrdisable {'on' if enabled else 'off'}")
         return result is not None
 
     async def set_cec(self, enabled: bool) -> bool:
-        """Set CEC state."""
         result = await self._send_command(f"set cec {'on' if enabled else 'off'}")
         return result is not None
 
     async def set_earc_force(self, mode: str) -> bool:
-        """Set eARC force mode."""
         result = await self._send_command(f"set earcforce {mode}")
         return result is not None
 
     async def set_arc_force(self, mode: str) -> bool:
-        """Set ARC force mode."""
         result = await self._send_command(f"set arcforce {mode}")
         return result is not None
 
     async def set_oled(self, enabled: bool) -> bool:
-        """Set OLED display state."""
         result = await self._send_command(f"set oled {'on' if enabled else 'off'}")
         return result is not None
 
     async def set_autoswitch(self, enabled: bool) -> bool:
-        """Set autoswitch state."""
         result = await self._send_command(f"set autosw {'on' if enabled else 'off'}")
         return result is not None
 
     async def set_scale_mode(self, mode: str) -> bool:
-        """Set scale mode."""
         cmd = "scalemode" if self.model_config.model_id == "arcana2" else "scale"
         result = await self._send_command(f"set {cmd} {mode}")
         return result is not None
 
     async def hotplug(self) -> bool:
-        """Trigger hotplug."""
         result = await self._send_command("set hotplug")
         return result is not None
 
     async def reboot(self) -> bool:
-        """Reboot device."""
         result = await self._send_command("set reboot")
         return result is not None
 
     async def set_edid_audio(self, source: str) -> bool:
-        """Set EDID audio source."""
         result = await self._send_command(f"set edidaudio {source}")
         return result is not None
 
     async def set_audio_mode(self, mode: str) -> bool:
-        """Set audio mode (ARCANA2)."""
         result = await self._send_command(f"set audiomode {mode}")
         return result is not None
 
     async def set_led_mode(self, mode: str) -> bool:
-        """Set LED mode (DIVA)."""
         result = await self._send_command(f"set led {mode}")
         return result is not None
 
     async def set_color_space(self, mode: str) -> bool:
-        """Set color space mode."""
         result = await self._send_command(f"set colorspace {mode}")
         return result is not None
 
     async def set_deep_color(self, mode: str) -> bool:
-        """Set deep color mode."""
         result = await self._send_command(f"set deepcolor {mode}")
         return result is not None
 
     async def set_output_resolution(self, resolution: str) -> bool:
-        """Set output resolution (Dr.HDMI 8K)."""
         result = await self._send_command(f"set outres {resolution}")
         return result is not None

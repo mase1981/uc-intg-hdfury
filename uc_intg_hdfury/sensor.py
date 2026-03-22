@@ -10,7 +10,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from ucapi.sensor import Sensor, States, Attributes, DeviceClasses, Options
+from ucapi.sensor import Attributes, DeviceClasses, Options, States
+from ucapi_framework import SensorEntity
 
 if TYPE_CHECKING:
     from uc_intg_hdfury.config import HDFuryConfig
@@ -19,109 +20,73 @@ if TYPE_CHECKING:
 _LOG = logging.getLogger(__name__)
 
 
-def create_sensors(config: HDFuryConfig, device: HDFuryDevice) -> list[Sensor]:
+class HDFurySensor(SensorEntity):
+    """HDFury sensor entity using subscribe/sync_state pattern."""
+
+    def __init__(
+        self,
+        entity_id: str,
+        name: str,
+        device: HDFuryDevice,
+        sensor_key: str,
+        unit: str,
+    ):
+        super().__init__(
+            entity_id=entity_id,
+            name=name,
+            features=[],
+            attributes={
+                Attributes.STATE: States.UNKNOWN,
+                Attributes.VALUE: "",
+            },
+            device_class=DeviceClasses.CUSTOM,
+            options={Options.CUSTOM_UNIT: unit},
+        )
+        self._device = device
+        self._sensor_key = sensor_key
+        self.subscribe_to_device(device)
+
+    async def sync_state(self):
+        value = self._device.get_sensor_value(self._sensor_key) or "Unknown"
+        self.update({
+            Attributes.STATE: States.ON,
+            Attributes.VALUE: value,
+        })
+
+
+def create_sensors(config: HDFuryConfig, device: HDFuryDevice) -> list[HDFurySensor]:
     """Create sensor entities for HDFury device."""
-    sensors = []
+    sensors: list[HDFurySensor] = []
     model = device.model_config
     device_id = config.identifier
     name = config.name
 
-    if model.input_count > 0:
+    def _add(key: str, label: str, unit: str) -> None:
         sensors.append(
-            Sensor(
-                f"sensor.{device_id}.current_input",
-                f"{name} Current Input",
-                [],
-                {Attributes.STATE: States.ON, Attributes.VALUE: "Unknown"},
-                device_class=DeviceClasses.CUSTOM,
-                options={Options.CUSTOM_UNIT: "input"},
-            )
-        )
-        sensors.append(
-            Sensor(
-                f"sensor.{device_id}.video_input",
-                f"{name} Video Input",
-                [],
-                {Attributes.STATE: States.ON, Attributes.VALUE: "Unknown"},
-                device_class=DeviceClasses.CUSTOM,
-                options={Options.CUSTOM_UNIT: "signal"},
+            HDFurySensor(
+                entity_id=f"sensor.{device_id}.{key}",
+                name=f"{name} {label}",
+                device=device,
+                sensor_key=key,
+                unit=unit,
             )
         )
 
-    sensors.append(
-        Sensor(
-            f"sensor.{device_id}.audio_rx",
-            f"{name} Audio RX",
-            [],
-            {Attributes.STATE: States.ON, Attributes.VALUE: "Unknown"},
-            device_class=DeviceClasses.CUSTOM,
-            options={Options.CUSTOM_UNIT: "audio"},
-        )
-    )
+    if model.input_count > 0:
+        _add("current_input", "Current Input", "input")
+        _add("video_input", "Video Input", "signal")
+
+    _add("audio_rx", "Audio RX", "audio")
 
     if model.matrix_outputs and model.matrix_outputs >= 1:
-        sensors.append(
-            Sensor(
-                f"sensor.{device_id}.video_tx0",
-                f"{name} TX0 Output",
-                [],
-                {Attributes.STATE: States.ON, Attributes.VALUE: "Unknown"},
-                device_class=DeviceClasses.CUSTOM,
-                options={Options.CUSTOM_UNIT: "signal"},
-            )
-        )
-        sensors.append(
-            Sensor(
-                f"sensor.{device_id}.sink_tx0",
-                f"{name} TX0 Sink",
-                [],
-                {Attributes.STATE: States.ON, Attributes.VALUE: "Unknown"},
-                device_class=DeviceClasses.CUSTOM,
-                options={Options.CUSTOM_UNIT: "device"},
-            )
-        )
-        sensors.append(
-            Sensor(
-                f"sensor.{device_id}.audio_tx0",
-                f"{name} TX0 Audio",
-                [],
-                {Attributes.STATE: States.ON, Attributes.VALUE: "Unknown"},
-                device_class=DeviceClasses.CUSTOM,
-                options={Options.CUSTOM_UNIT: "audio"},
-            )
-        )
+        _add("video_tx0", "TX0 Output", "signal")
+        _add("sink_tx0", "TX0 Sink", "device")
+        _add("audio_tx0", "TX0 Audio", "audio")
 
     if model.matrix_outputs and model.matrix_outputs >= 2:
-        sensors.append(
-            Sensor(
-                f"sensor.{device_id}.video_tx1",
-                f"{name} TX1 Output",
-                [],
-                {Attributes.STATE: States.ON, Attributes.VALUE: "Unknown"},
-                device_class=DeviceClasses.CUSTOM,
-                options={Options.CUSTOM_UNIT: "signal"},
-            )
-        )
-        sensors.append(
-            Sensor(
-                f"sensor.{device_id}.sink_tx1",
-                f"{name} TX1 Sink",
-                [],
-                {Attributes.STATE: States.ON, Attributes.VALUE: "Unknown"},
-                device_class=DeviceClasses.CUSTOM,
-                options={Options.CUSTOM_UNIT: "device"},
-            )
-        )
-        sensors.append(
-            Sensor(
-                f"sensor.{device_id}.audio_tx1",
-                f"{name} TX1 Audio",
-                [],
-                {Attributes.STATE: States.ON, Attributes.VALUE: "Unknown"},
-                device_class=DeviceClasses.CUSTOM,
-                options={Options.CUSTOM_UNIT: "audio"},
-            )
-        )
+        _add("video_tx1", "TX1 Output", "signal")
+        _add("sink_tx1", "TX1 Sink", "device")
+        _add("audio_tx1", "TX1 Audio", "audio")
 
     _LOG.info("Created %d sensor entities for %s", len(sensors), name)
     return sensors

@@ -30,4 +30,5 @@ class HDFuryDriver(BaseIntegrationDriver[HDFuryDevice, HDFuryConfig]):
                 lambda cfg, dev: create_select_entities(cfg, dev),
             ],
             driver_id="uc-intg-hdfury",
+            require_connection_before_registry=True,
         )

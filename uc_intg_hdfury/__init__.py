@@ -19,7 +19,7 @@ from uc_intg_hdfury.driver import HDFuryDriver
 from uc_intg_hdfury.setup_flow import HDFurySetupFlow
 
 try:
-    driver_path = Path(__file__).parent.parent / "driver.json"
+    driver_path = Path(__file__).parent.parent.absolute() / "driver.json"
     with open(driver_path, "r", encoding="utf-8") as f:
         __version__ = json.load(f).get("version", "0.0.0")
 except (FileNotFoundError, json.JSONDecodeError):
@@ -52,7 +52,7 @@ async def main():
     driver_json_path = os.path.join(os.path.dirname(__file__), "..", "driver.json")
     await driver.api.init(os.path.abspath(driver_json_path), setup_handler)
 
-    await driver.register_all_configured_devices(connect=False)
+    await driver.register_all_device_instances(connect=False)
 
     device_count = len(list(config_manager.all()))
     if device_count > 0:
