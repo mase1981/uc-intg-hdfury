@@ -75,7 +75,6 @@ class HDFuryDevice(PersistentConnectionDevice):
             _LOG.info("%s Connected", self.log_id)
 
         self._state = "ON"
-        await self._poll_state()
         return (self._reader, self._writer)
 
     async def close_connection(self):
@@ -105,6 +104,8 @@ class HDFuryDevice(PersistentConnectionDevice):
             pass
 
     async def maintain_connection(self):
+        await self._poll_state()
+
         while self._reader and self._writer and not self._reader.at_eof():
             try:
                 await asyncio.sleep(HEARTBEAT_INTERVAL)
