@@ -213,9 +213,9 @@ class HDFuryDevice(PersistentConnectionDevice):
         if response and "RX0:" in response:
             self._sensor_values["video_input"] = response.replace("RX0:", "").strip()
 
-        response = await self._send_command("get status audiorx")
-        if response and "AUDIORX:" in response:
-            self._sensor_values["audio_rx"] = response.replace("AUDIORX:", "").strip()
+        response = await self._send_command("get status audout")
+        if response and "AUDOUT:" in response:
+            self._sensor_values["audio_rx"] = response.replace("AUDOUT:", "").strip()
 
         if self.model_config.matrix_outputs and self.model_config.matrix_outputs >= 1:
             response = await self._send_command("get status tx0")
@@ -226,9 +226,7 @@ class HDFuryDevice(PersistentConnectionDevice):
             if response and "TX0SINK:" in response:
                 self._sensor_values["sink_tx0"] = response.replace("TX0SINK:", "").strip()
 
-            response = await self._send_command("get status audiotx0")
-            if response and "AUDIOTX0:" in response:
-                self._sensor_values["audio_tx0"] = response.replace("AUDIOTX0:", "").strip()
+            self._sensor_values["audio_tx0"] = await self._get_audio_tx(0)
 
         if self.model_config.matrix_outputs and self.model_config.matrix_outputs >= 2:
             response = await self._send_command("get status tx1")
@@ -239,11 +237,24 @@ class HDFuryDevice(PersistentConnectionDevice):
             if response and "TX1SINK:" in response:
                 self._sensor_values["sink_tx1"] = response.replace("TX1SINK:", "").strip()
 
-            response = await self._send_command("get status audiotx1")
-            if response and "AUDIOTX1:" in response:
-                self._sensor_values["audio_tx1"] = response.replace("AUDIOTX1:", "").strip()
+            self._sensor_values["audio_tx1"] = await self._get_audio_tx(1)
 
         self.push_update()
+
+    async def _get_audio_tx(self, output: int) -> str:
+        mode_resp = await self._send_command(f"get audiomodetx{output}")
+        mode = ""
+        if mode_resp and f"audiomodetx{output}" in mode_resp:
+            parts = mode_resp.split(None, 1)
+            if len(parts) >= 2:
+                mode = parts[1]
+
+        status_resp = await self._send_command(f"get status aud{output}")
+        if status_resp and f"AUD{output}:" in status_resp:
+            audio_info = status_resp.replace(f"AUD{output}:", "").strip()
+            if audio_info:
+                return audio_info
+        return mode
 
     def get_sensor_value(self, key: str) -> str | None:
         return self._sensor_values.get(key)

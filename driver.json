@@ -1,6 +1,6 @@
 {
     "driver_id": "uc-intg-hdfury",
-    "version": "2.0.2",
+    "version": "2.0.3",
     "min_core_api": "0.22.0",
     "name": {
         "en": "HDFury"
@@ -14,7 +14,7 @@
         "email": "meir.miyara@gmail.com"
     },
     "home_page": "https://github.com/mase1981/uc-intg-hdfury",
-    "release_date": "2026-04-01",
+    "release_date": "2026-04-04",
     "setup_data_schema": {
         "title": {
             "en": "HDFury Setup"
