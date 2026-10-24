@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING
 from ucapi.sensor import Attributes, DeviceClasses, Options, States
 from ucapi_framework import SensorEntity
 
+from uc_intg_hdfury.device import EXTENDED_MODELS
+
 if TYPE_CHECKING:
     from uc_intg_hdfury.config import HDFuryConfig
     from uc_intg_hdfury.device import HDFuryDevice
@@ -47,11 +49,14 @@ class HDFurySensor(SensorEntity):
         self.subscribe_to_device(device)
 
     async def sync_state(self):
-        value = self._device.get_sensor_value(self._sensor_key) or "Unknown"
-        self.update({
-            Attributes.STATE: States.ON,
-            Attributes.VALUE: value,
-        })
+        if self._device.state == "UNAVAILABLE":
+            self.update({Attributes.STATE: States.UNAVAILABLE})
+            return
+        value = self._device.get_sensor_value(self._sensor_key)
+        if not value:
+            self.update({Attributes.STATE: States.UNKNOWN, Attributes.VALUE: ""})
+            return
+        self.update({Attributes.STATE: States.ON, Attributes.VALUE: value})
 
 
 def create_sensors(config: HDFuryConfig, device: HDFuryDevice) -> list[HDFurySensor]:
@@ -87,6 +92,14 @@ def create_sensors(config: HDFuryConfig, device: HDFuryDevice) -> list[HDFurySen
         _add("video_tx1", "TX1 Output", "signal")
         _add("sink_tx1", "TX1 Sink", "device")
         _add("audio_tx1", "TX1 Audio", "audio")
+
+    _add("firmware", "Firmware", "version")
+
+    if model.model_id in EXTENDED_MODELS:
+        _add("video_rx1", "Video Input 1", "signal")
+        _add("operation_mode", "Operation Mode", "mode")
+        _add("earc_rx", "eARC Status", "status")
+        _add("sink_audio_tx0", "TX0 Sink Audio", "audio")
 
     _LOG.info("Created %d sensor entities for %s", len(sensors), name)
     return sensors

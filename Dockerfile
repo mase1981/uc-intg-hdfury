@@ -2,7 +2,6 @@ FROM python:3.11-slim-bullseye
 
 WORKDIR /app
 
-COPY ./lib ./lib
 COPY ./requirements.txt requirements.txt
 RUN pip3 install --no-cache-dir --upgrade -r requirements.txt
 RUN mkdir /config

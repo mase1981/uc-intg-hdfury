@@ -9,6 +9,7 @@ import logging
 
 from ucapi_framework import BaseIntegrationDriver
 
+from uc_intg_hdfury.button import create_buttons
 from uc_intg_hdfury.config import HDFuryConfig
 from uc_intg_hdfury.device import HDFuryDevice
 from uc_intg_hdfury.remote import HDFuryRemote
@@ -28,7 +29,7 @@ class HDFuryDriver(BaseIntegrationDriver[HDFuryDevice, HDFuryConfig]):
                 HDFuryRemote,
                 lambda cfg, dev: create_sensors(cfg, dev),
                 lambda cfg, dev: create_select_entities(cfg, dev),
+                lambda cfg, dev: create_buttons(cfg, dev),
             ],
             driver_id="uc-intg-hdfury",
-            require_connection_before_registry=True,
         )

@@ -1,2 +1,2 @@
-lib/ucapi-0.5.3.dev0+gd11cfea3f.d20260320-py3-none-any.whl
-ucapi-framework==1.9.1
+ucapi-framework>=1.9.8
+ucapi>=0.7.0

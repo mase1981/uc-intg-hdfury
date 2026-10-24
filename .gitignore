@@ -59,3 +59,11 @@ artifacts/
 # Testing files (keep local only)
 tests/
 simulator/
+
+# Claude knowledge base (local only)
+knowledge-base/
+*.knowledge.md
+tmpclaude-*
+nul
+.venv/
+.vscode/

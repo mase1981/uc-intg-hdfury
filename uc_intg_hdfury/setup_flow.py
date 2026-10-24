@@ -7,13 +7,14 @@ HDFury setup flow.
 
 import asyncio
 import logging
+import re
 from typing import Any
 
 from ucapi import RequestUserInput
 from ucapi_framework import BaseSetupFlow
 
 from uc_intg_hdfury.config import HDFuryConfig
-from uc_intg_hdfury.models import get_model_config
+from uc_intg_hdfury.models import MODEL_CONFIGS, get_model_config
 
 _LOG = logging.getLogger(__name__)
 
@@ -47,46 +48,58 @@ class HDFurySetupFlow(BaseSetupFlow[HDFuryConfig]):
             ],
         )
 
+    def _address_form(self, model_id: str, address: str = "", port: int | None = None,
+                      error: str = "") -> RequestUserInput:
+        model_config = get_model_config(model_id)
+        settings: list[dict[str, Any]] = []
+        if error:
+            settings.append(
+                {
+                    "id": "error",
+                    "label": {"en": ""},
+                    "field": {"label": {"value": {"en": f"⚠️ {error}"}}},
+                }
+            )
+        settings += [
+            {"id": "model", "label": {"en": "Model"}, "field": {"text": {"value": model_id}}},
+            {"id": "address", "label": {"en": "IP Address"}, "field": {"text": {"value": address}}},
+            {
+                "id": "port",
+                "label": {"en": "Port"},
+                "field": {"number": {"value": port or model_config.default_port}},
+            },
+        ]
+        return RequestUserInput({"en": "HDFury Device Address"}, settings)
+
     async def query_device(
         self, input_values: dict[str, Any]
     ) -> HDFuryConfig | RequestUserInput:
         """Process setup input and validate connection."""
-        model_id = input_values.get("model", "vrroom")
+        model_id = str(input_values.get("model", "vrroom")).strip()
+        if model_id not in MODEL_CONFIGS:
+            return self.get_manual_entry_form()
 
         if "address" not in input_values:
-            model_config = get_model_config(model_id)
-            return RequestUserInput(
-                {"en": "HDFury Device Address"},
-                [
-                    {
-                        "id": "model",
-                        "label": {"en": "Model"},
-                        "field": {"text": {"value": model_id}},
-                    },
-                    {
-                        "id": "address",
-                        "label": {"en": "IP Address"},
-                        "field": {"text": {"value": ""}},
-                    },
-                    {
-                        "id": "port",
-                        "label": {"en": "Port"},
-                        "field": {"number": {"value": model_config.default_port}},
-                    },
-                ],
-            )
+            return self._address_form(model_id)
 
-        address = input_values.get("address", "").strip()
+        address = str(input_values.get("address", "")).strip()
         if not address:
-            raise ValueError("IP address is required")
+            return self._address_form(model_id, error="IP address is required.")
 
-        port = int(input_values.get("port", 2222))
-        model_config = get_model_config(model_id)
+        try:
+            port = int(float(input_values.get("port") or get_model_config(model_id).default_port))
+        except (TypeError, ValueError):
+            return self._address_form(model_id, address, error="Port must be a number.")
+        if not 1 <= port <= 65535:
+            return self._address_form(model_id, address, error="Port must be 1-65535.")
 
         if not await self._test_connection(address, port):
-            raise ValueError(f"Cannot connect to HDFury device at {address}:{port}")
+            return self._address_form(
+                model_id, address, port, f"Cannot connect to HDFury device at {address}:{port}"
+            )
 
-        identifier = f"hdfury_{address.replace('.', '_')}"
+        model_config = get_model_config(model_id)
+        identifier = "hdfury_" + re.sub(r"[^a-z0-9]+", "_", address.lower()).strip("_")
         name = f"HDFury {model_config.display_name}"
 
         _LOG.info("Setup complete for %s at %s:%d", name, address, port)

@@ -11,13 +11,6 @@ import logging
 import os
 from pathlib import Path
 
-from ucapi import DeviceStates
-from ucapi_framework import BaseConfigManager, get_config_path
-
-from uc_intg_hdfury.config import HDFuryConfig
-from uc_intg_hdfury.driver import HDFuryDriver
-from uc_intg_hdfury.setup_flow import HDFurySetupFlow
-
 try:
     driver_path = Path(__file__).parent.parent.absolute() / "driver.json"
     with open(driver_path, "r", encoding="utf-8") as f:
@@ -25,15 +18,27 @@ try:
 except (FileNotFoundError, json.JSONDecodeError):
     __version__ = "0.0.0"
 
+__all__ = ["__version__", "main"]
+
 _LOG = logging.getLogger(__name__)
 
 
 async def main():
     """Main entry point."""
+    from ucapi import DeviceStates
+    from ucapi_framework import BaseConfigManager, get_config_path
+
+    from uc_intg_hdfury.config import HDFuryConfig
+    from uc_intg_hdfury.driver import HDFuryDriver
+    from uc_intg_hdfury.setup_flow import HDFurySetupFlow
+
+    level = os.getenv("UC_LOG_LEVEL", "INFO").upper()
     logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s | %(levelname)-8s | %(name)-20s | %(message)s",
+        level=getattr(logging, level, logging.INFO),
+        format="%(asctime)s | %(levelname)-8s | %(name)-22s | %(message)s",
     )
+    logging.getLogger("aiohttp").setLevel(logging.WARNING)
+    logging.getLogger("websockets.server").setLevel(logging.CRITICAL)
 
     _LOG.info("Starting HDFury Integration v%s", __version__)
 
@@ -55,12 +60,11 @@ async def main():
     await driver.register_all_device_instances(connect=False)
 
     device_count = len(list(config_manager.all()))
-    if device_count > 0:
-        await driver.api.set_device_state(DeviceStates.CONNECTED)
-    else:
-        await driver.api.set_device_state(DeviceStates.DISCONNECTED)
+    await driver.api.set_device_state(
+        DeviceStates.CONNECTED if device_count > 0 else DeviceStates.DISCONNECTED
+    )
 
-    _LOG.info("HDFury integration started")
+    _LOG.info("HDFury integration started - %d device(s) configured", device_count)
 
     await asyncio.Future()
 

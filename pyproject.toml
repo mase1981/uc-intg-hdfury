@@ -4,10 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "uc-intg-hdfury"
-version = "2.0.2"
+version = "2.1.0"
 description = "Unfolded Circle Integration for HDFury devices"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 license = { text = "MPL-2.0" }
 authors = [
     { name = "Meir Miyara", email = "meir.miyara@gmail.com" }
@@ -18,16 +18,14 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Mozilla Public License 2.0 (MPL-2.0)",
     "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Home Automation",
 ]
 
 dependencies = [
-    "ucapi>=0.5.2",
-    "ucapi-framework>=1.9.1",
+    "ucapi-framework>=1.9.8",
+    "ucapi>=0.7.0",
 ]
 
 [project.optional-dependencies]

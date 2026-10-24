@@ -7,6 +7,7 @@ HDFury Remote entity.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import TYPE_CHECKING, Any
 
@@ -44,31 +45,41 @@ class HDFuryRemote(RemoteEntity):
         self.subscribe_to_device(device)
 
     async def sync_state(self):
+        if self._device.state == "UNAVAILABLE":
+            self.update({Attributes.STATE: States.UNAVAILABLE})
+            return
         self.update({Attributes.STATE: States.ON})
 
     async def _handle_command(
         self, entity: Any, cmd_id: str, params: dict[str, Any] | None
     ) -> StatusCodes:
-        if cmd_id == Commands.SEND_CMD:
-            if not params or "command" not in params:
-                return StatusCodes.BAD_REQUEST
+        params = params or {}
 
-            command = params["command"]
-            _LOG.info("[%s] Command: %s", self._device.log_id, command)
-
-            success = await self._execute_command(command)
-            return StatusCodes.OK if success else StatusCodes.SERVER_ERROR
-
-        elif cmd_id == Commands.SEND_CMD_SEQUENCE:
-            if not params or "sequence" not in params:
-                return StatusCodes.BAD_REQUEST
-
-            for command in params["sequence"]:
-                if not await self._execute_command(command):
-                    return StatusCodes.SERVER_ERROR
+        if cmd_id in (Commands.ON, Commands.OFF, Commands.TOGGLE):
             return StatusCodes.OK
 
-        return StatusCodes.NOT_IMPLEMENTED
+        delay = int(params.get("delay", 0) or 0) / 1000
+        if cmd_id == Commands.SEND_CMD:
+            command = params.get("command")
+            if not command:
+                return StatusCodes.BAD_REQUEST
+            commands = [command] * max(1, int(params.get("repeat", 1) or 1))
+        elif cmd_id == Commands.SEND_CMD_SEQUENCE:
+            sequence = params.get("sequence")
+            if not sequence:
+                return StatusCodes.BAD_REQUEST
+            commands = sequence.split(",") if isinstance(sequence, str) else list(sequence)
+        else:
+            return StatusCodes.NOT_IMPLEMENTED
+
+        for index, command in enumerate(commands):
+            command = str(command).strip()
+            _LOG.info("[%s] Command: %s", self._device.log_id, command)
+            if not await self._execute_command(command):
+                return StatusCodes.SERVER_ERROR
+            if delay and index < len(commands) - 1:
+                await asyncio.sleep(delay)
+        return StatusCodes.OK
 
     async def _execute_command(self, command: str) -> bool:
         if command.startswith("set_source_"):
@@ -150,7 +161,8 @@ class HDFuryRemote(RemoteEntity):
         if command == "reboot_device":
             return await self._device.reboot()
 
-        return await self._device.send_command(f"set {command}")
+        _LOG.warning("[%s] Unknown command: %s", self._device.log_id, command)
+        return False
 
     def _build_simple_commands(self) -> list[str]:
         commands = []
